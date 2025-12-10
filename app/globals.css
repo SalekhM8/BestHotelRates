@@ -1,0 +1,267 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0a0e27;
+  --foreground: #ffffff;
+  --glass-bg: rgba(135, 206, 250, 0.15);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-hover: rgba(135, 206, 250, 0.25);
+}
+
+@layer base {
+  body {
+    @apply bg-[#0a0e27] text-white;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+/* Glassmorphism Utilities */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 24px;
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+  transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+  background: var(--glass-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 48px rgba(31, 38, 135, 0.5);
+}
+
+.glass-card-small {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 16px;
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 16px rgba(31, 38, 135, 0.3);
+  transition: all 0.3s ease;
+}
+
+.glass-card-small:hover {
+  background: var(--glass-hover);
+  transform: translateY(-2px);
+}
+
+.glass-input {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.glass-input:focus {
+  background: rgba(255, 255, 255, 0.15);
+  outline: none;
+  border-color: rgba(135, 206, 250, 0.5);
+}
+
+.glass-input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(135, 206, 250, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(135, 206, 250, 0.5);
+}
+
+/* Video Background */
+.video-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.video-background video {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  min-width: 100%;
+  min-height: 100%;
+  width: auto;
+  height: auto;
+  transform: translate(-50%, -50%);
+  filter: blur(4px);
+  opacity: 0.7;
+  object-fit: cover;
+}
+
+/* Loading Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.6s ease forwards;
+}
+
+/* React DatePicker Styling - Beautiful Glassmorphism Calendar */
+.react-datepicker-wrapper {
+  width: 100%;
+}
+
+.react-datepicker-popper {
+  z-index: 9999 !important;
+}
+
+.react-datepicker__portal {
+  z-index: 9999 !important;
+}
+
+.react-datepicker {
+  background: rgba(20, 30, 70, 0.98) !important;
+  backdrop-filter: blur(30px) !important;
+  -webkit-backdrop-filter: blur(30px) !important;
+  border: 2px solid rgba(135, 206, 250, 0.3) !important;
+  border-radius: 20px !important;
+  color: white !important;
+  font-family: inherit !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5) !important;
+}
+
+.react-datepicker__header {
+  background: rgba(135, 206, 250, 0.2) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 18px 18px 0 0 !important;
+  padding-top: 16px !important;
+  padding-bottom: 8px !important;
+}
+
+.react-datepicker__current-month {
+  color: white !important;
+  font-weight: 700 !important;
+  font-size: 16px !important;
+  margin-bottom: 8px !important;
+}
+
+.react-datepicker__day-names {
+  margin-top: 8px !important;
+}
+
+.react-datepicker__day-name {
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-weight: 600 !important;
+  width: 2.5rem !important;
+  margin: 0.2rem !important;
+}
+
+.react-datepicker__week {
+  display: flex !important;
+  justify-content: center !important;
+}
+
+.react-datepicker__day {
+  color: white !important;
+  width: 2.5rem !important;
+  display: inline-flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  line-height: 2.5rem !important;
+  margin: 0.2rem !important;
+  border-radius: 10px !important;
+  transition: all 0.2s ease !important;
+}
+
+.react-datepicker__day:hover {
+  background: rgba(135, 206, 250, 0.4) !important;
+  transform: scale(1.05) !important;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--in-selecting-range,
+.react-datepicker__day--in-range {
+  background: rgba(135, 206, 250, 0.7) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 12px rgba(135, 206, 250, 0.3) !important;
+}
+
+.react-datepicker__day--keyboard-selected {
+  background: rgba(135, 206, 250, 0.5) !important;
+}
+
+.react-datepicker__day--disabled {
+  color: rgba(255, 255, 255, 0.2) !important;
+  cursor: not-allowed !important;
+}
+
+.react-datepicker__day--disabled:hover {
+  background: transparent !important;
+  transform: none !important;
+}
+
+.react-datepicker__day--today {
+  border: 2px solid rgba(135, 206, 250, 0.6) !important;
+  font-weight: 600 !important;
+}
+
+.react-datepicker__navigation {
+  top: 16px !important;
+}
+
+.react-datepicker__navigation-icon::before {
+  border-color: white !important;
+  border-width: 2px 2px 0 0 !important;
+}
+
+.react-datepicker__navigation:hover *::before {
+  border-color: rgba(135, 206, 250, 1) !important;
+}
+
+.react-datepicker__month {
+  margin: 1rem !important;
+}
+
+.react-datepicker__triangle {
+  display: none !important;
+}

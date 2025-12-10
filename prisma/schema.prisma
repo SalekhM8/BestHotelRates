@@ -1,0 +1,532 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  password      String
+  name          String?
+  phone         String?
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  bookings      Booking[]
+  sessions      Session[]
+  wishlist      Wishlist[]
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Booking {
+  id                 String        @id @default(cuid())
+  bookingReference   String        @unique
+  userId             String
+  hotelId            String
+  serviceType        BookingServiceType @default(HOTEL)
+  serviceSubtype     String?
+  hotelName          String
+  hotelLocation      String
+  hotelStarRating    Int?
+  hotelImage         String?
+  checkIn            DateTime
+  checkOut           DateTime
+  roomType           String
+  numberOfRooms      Int
+  numberOfGuests     Int
+  adults             Int
+  children           Int           @default(0)
+  guestName          String
+  guestEmail         String
+  guestPhone         String
+  specialRequests    String?
+  roomRate           Float
+  taxes              Float
+  totalAmount        Float
+  currency           String        @default("GBP")
+  status             BookingStatus @default(PENDING)
+  paymentStatus      PaymentStatus @default(PENDING)
+  stripeSessionId    String?
+  stripePaymentId    String?
+  etgBookingId       String?
+  cancellationPolicy String?
+  paymentDueDate     DateTime?
+  automaticCancelAt  DateTime?
+  isFreeCancellation Boolean       @default(false)
+  isUnpaid           Boolean       @default(false)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  metadata           Json?
+  user               User          @relation(fields: [userId], references: [id])
+  rooms              BookingRoom[]
+  activities         BookingActivity[]
+
+  @@index([userId])
+  @@index([bookingReference])
+  @@index([status])
+  @@index([hotelId])
+}
+
+model Wishlist {
+  id              String   @id @default(cuid())
+  userId          String
+  hotelId         String
+  hotelName       String
+  hotelLocation   String
+  hotelImage      String?
+  hotelStarRating Int?
+  createdAt       DateTime @default(now())
+  hotel           Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, hotelId])
+  @@index([userId])
+}
+
+model Admin {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  name      String
+  role      AdminRole @default(ADMIN)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model EmailLog {
+  id        String    @id @default(cuid())
+  to        String
+  subject   String
+  type      EmailType
+  bookingId String?
+  sent      Boolean   @default(false)
+  error     String?
+  sentAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([bookingId])
+  @@index([type])
+}
+
+model Supplier {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  apiType     String
+  baseUrl     String?
+  status      String   @default("ACTIVE")
+  credentials Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  hotels      Hotel[]
+}
+
+model Category {
+  id          String          @id @default(cuid())
+  name        String          @unique
+  slug        String          @unique
+  description String?
+  icon        String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  hotels      HotelCategory[]
+}
+
+model Hotel {
+  id                String          @id @default(cuid())
+  supplierId        String?
+  supplierHotelId   String?
+  name              String
+  slug              String          @unique
+  headline          String?
+  description       String?
+  brand             String?
+  country           String
+  city              String
+  region            String?
+  address           String?
+  latitude          Float?
+  longitude         Float?
+  starRating        Int?
+  reviewScore       Float?
+  reviewCount       Int?
+  heroImage         String?
+  coverVideoMobile  String?
+  coverVideoDesktop String?
+  defaultCurrency   String          @default("GBP")
+  minRate           Float?
+  maxRate           Float?
+  featured          Boolean         @default(false)
+  tags              Json?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  bookings          BookingRoom[]
+  supplier          Supplier?       @relation(fields: [supplierId], references: [id])
+  addOns            HotelAddOn[]
+  amenities         HotelAmenity[]
+  categories        HotelCategory[]
+  images            HotelImage[]
+  roomTypes         RoomType[]
+  wishlists         Wishlist[]
+
+  @@index([city])
+  @@index([country])
+  @@index([featured])
+}
+
+model HotelImage {
+  id        String   @id @default(cuid())
+  hotelId   String
+  url       String
+  caption   String?
+  type      String?
+  sortOrder Int      @default(0)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  hotel     Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+}
+
+model HotelCategory {
+  id         String   @id @default(cuid())
+  hotelId    String
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  hotel      Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, categoryId])
+}
+
+model Amenity {
+  id          String            @id @default(cuid())
+  name        String            @unique
+  slug        String            @unique
+  category    AmenityCategory
+  icon        String?
+  description String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  hotels      HotelAmenity[]
+  roomTypes   RoomTypeAmenity[]
+}
+
+model HotelAmenity {
+  id        String  @id @default(cuid())
+  hotelId   String
+  amenityId String
+  priority  Int     @default(0)
+  amenity   Amenity @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+  hotel     Hotel   @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, amenityId])
+}
+
+model RoomType {
+  id             String            @id @default(cuid())
+  hotelId        String
+  name           String
+  slug           String
+  description    String?
+  sizeSqm        Int?
+  bedTypes       Json?
+  view           String?
+  maxAdults      Int               @default(2)
+  maxChildren    Int               @default(0)
+  maxOccupancy   Int               @default(2)
+  totalInventory Int               @default(5)
+  isSuite        Boolean           @default(false)
+  sortOrder      Int               @default(0)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  bookingRooms   BookingRoom[]
+  ratePlans      RatePlan[]
+  hotel          Hotel             @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  amenities      RoomTypeAmenity[]
+  images         RoomTypeImage[]
+
+  @@unique([hotelId, slug])
+}
+
+model RoomTypeImage {
+  id         String   @id @default(cuid())
+  roomTypeId String
+  url        String
+  caption    String?
+  sortOrder  Int      @default(0)
+  isPrimary  Boolean  @default(false)
+  roomType   RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+}
+
+model RoomTypeAmenity {
+  id         String   @id @default(cuid())
+  roomTypeId String
+  amenityId  String
+  amenity    Amenity  @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+  roomType   RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([roomTypeId, amenityId])
+}
+
+model CancellationPolicy {
+  id                   String     @id @default(cuid())
+  name                 String
+  description          String?
+  refundableUntilHours Int?
+  penalties            Json?
+  policyText           String?
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+  ratePlans            RatePlan[]
+}
+
+model RatePlan {
+  id                    String              @id @default(cuid())
+  roomTypeId            String
+  name                  String
+  code                  String?
+  description           String?
+  boardType             BoardType
+  rateType              RateType
+  paymentType           PaymentType
+  isRefundable          Boolean             @default(true)
+  freeCancellationUntil DateTime?
+  cancellationPolicyId  String?
+  currency              String              @default("GBP")
+  baseRate              Float
+  averageNightlyRate    Float
+  totalBeforeTaxes      Float
+  taxes                 Float
+  fees                  Float
+  totalAmount           Float
+  minStay               Int?
+  maxStay               Int?
+  availableRooms        Int                 @default(5)
+  maxRoomsPerBooking    Int?
+  includeBreakfast      Boolean             @default(false)
+  promotions            Json?
+  nightlyBreakdown      Json?
+  inclusions            Json?
+  supplierRateId        String?
+  supplierCode          String?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  bookings              BookingRoom[]
+  cancellationPolicy    CancellationPolicy? @relation(fields: [cancellationPolicyId], references: [id])
+  roomType              RoomType            @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+  addOns                RatePlanAddOn[]
+}
+
+model HotelAddOn {
+  id              String          @id @default(cuid())
+  hotelId         String
+  name            String
+  description     String?
+  type            AddOnType
+  price           Float
+  currency        String          @default("GBP")
+  isPerNight      Boolean         @default(false)
+  isComplimentary Boolean         @default(false)
+  maxQuantity     Int?
+  sortOrder       Int             @default(0)
+  available       Boolean         @default(true)
+  metadata        Json?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  bookingAddOns   BookingAddOn[]
+  hotel           Hotel           @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  ratePlans       RatePlanAddOn[]
+}
+
+model RatePlanAddOn {
+  id              String     @id @default(cuid())
+  ratePlanId      String
+  addOnId         String
+  included        Boolean    @default(false)
+  additionalPrice Float?
+  metadata        Json?
+  addOn           HotelAddOn @relation(fields: [addOnId], references: [id], onDelete: Cascade)
+  ratePlan        RatePlan   @relation(fields: [ratePlanId], references: [id], onDelete: Cascade)
+
+  @@unique([ratePlanId, addOnId])
+}
+
+model BookingRoom {
+  id                 String         @id @default(cuid())
+  bookingId          String
+  hotelId            String
+  roomTypeId         String?
+  ratePlanId         String?
+  hotelName          String
+  roomTypeName       String
+  ratePlanName       String
+  boardType          BoardType?
+  paymentType        PaymentType?
+  checkIn            DateTime
+  checkOut           DateTime
+  nights             Int
+  roomsRequested     Int            @default(1)
+  occupancyAdults    Int            @default(2)
+  occupancyChildren  Int            @default(0)
+  occupancyInfants   Int            @default(0)
+  perNightRate       Float
+  totalBeforeTaxes   Float
+  taxes              Float
+  fees               Float
+  totalAmount        Float
+  currency           String         @default("GBP")
+  cancellationPolicy String?
+  metadata           Json?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  addOns             BookingAddOn[]
+  roomType           RoomType?      @relation(fields: [roomTypeId], references: [id])
+  ratePlan           RatePlan?      @relation(fields: [ratePlanId], references: [id])
+  hotel              Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  booking            Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([hotelId])
+  @@index([ratePlanId])
+}
+
+model BookingAddOn {
+  id            String      @id @default(cuid())
+  bookingRoomId String
+  addOnId       String?
+  name          String
+  type          AddOnType?
+  quantity      Int         @default(1)
+  price         Float
+  currency      String      @default("GBP")
+  metadata      Json?
+  addOn         HotelAddOn? @relation(fields: [addOnId], references: [id])
+  bookingRoom   BookingRoom @relation(fields: [bookingRoomId], references: [id], onDelete: Cascade)
+}
+
+model BookingActivity {
+  id        String              @id @default(cuid())
+  bookingId String
+  type      BookingActivityType
+  message   String
+  actor     String?
+  actorRole String?             @default("ADMIN")
+  metadata  Json?
+  createdAt DateTime            @default(now())
+
+  booking   Booking             @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+}
+
+enum BookingActivityType {
+  STATUS_UPDATE
+  PAYMENT_UPDATE
+  NOTE
+  EMAIL
+  REFUND
+  SUPPLIER_EVENT
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum BookingServiceType {
+  HOTEL
+  TRANSFER
+  CAR_HIRE
+  EXPERIENCE
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  SUPPORT
+}
+
+enum EmailType {
+  BOOKING_CONFIRMATION
+  ADMIN_NOTIFICATION
+  PASSWORD_RESET
+  WELCOME
+}
+
+enum AmenityCategory {
+  GENERAL
+  ROOM
+  DINING
+  WELLNESS
+  BUSINESS
+  FAMILY
+  ACCESSIBILITY
+  TRANSPORT
+  LUXURY
+  OTHER
+}
+
+enum BoardType {
+  ROOM_ONLY
+  BED_AND_BREAKFAST
+  HALF_BOARD
+  FULL_BOARD
+  ALL_INCLUSIVE
+  ULTRA_ALL_INCLUSIVE
+}
+
+enum RateType {
+  STANDARD
+  FLEX
+  PROMO
+  NON_REFUNDABLE
+  PACKAGE
+  CORPORATE
+  WHOLESALE
+  MOBILE_EXCLUSIVE
+}
+
+enum PaymentType {
+  PREPAID
+  PAY_AT_HOTEL
+  DEPOSIT
+  CREDIT_LIMIT
+}
+
+enum AddOnType {
+  LATE_CHECKOUT
+  EARLY_CHECKIN
+  AIRPORT_TRANSFER
+  ROOM_UPGRADE
+  SPA
+  EXCURSION
+  DINING
+  EXPERIENCE
+  OTHER
+}
