@@ -2,6 +2,7 @@
 
 import React, { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
 
@@ -11,6 +12,7 @@ export const fetchCache = 'force-no-store';
 function PaymentSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { status } = useSession();
   const [loading, setLoading] = useState(true);
   const [bookingRef, setBookingRef] = useState('');
 
@@ -87,8 +89,11 @@ function PaymentSuccessContent() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 onClick={() => {
-                  // If guest, direct to login before bookings
-                  router.push('/login?redirect=/bookings');
+                  if (status === 'authenticated') {
+                    router.push('/bookings');
+                  } else {
+                    router.push('/login?redirect=/bookings');
+                  }
                 }}
                 size="lg"
               >
