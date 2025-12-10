@@ -1,10 +1,13 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { HotelCardDynamic } from '@/components/hotel/HotelCardDynamic';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { SupplierHotelSummary } from '@/lib/suppliers/types';
+
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 const toCardProps = (hotel: SupplierHotelSummary) => {
   const tags = Array.isArray(hotel.tags)
@@ -28,7 +31,7 @@ const toCardProps = (hotel: SupplierHotelSummary) => {
 
 type SortOption = 'price-asc' | 'price-desc' | 'rating';
 
-export default function SearchPage() {
+function SearchPageInner() {
   const searchParams = useSearchParams();
   const destination = searchParams.get('destination') ?? '';
 
@@ -205,6 +208,20 @@ export default function SearchPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="relative min-h-screen flex items-center justify-center pb-32 md:pb-24 pt-24">
+          <div className="text-white/80 text-lg">Loading search…</div>
+        </main>
+      }
+    >
+      <SearchPageInner />
+    </Suspense>
   );
 }
 

@@ -1,13 +1,13 @@
-import { NextResponse } from 'next/server';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin, AdminAuthError } from '@/lib/admin-auth';
 import { getAdminBookingById } from '@/lib/admin-bookings';
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     await requireAdmin();
 
-    const booking = await getAdminBookingById(params.id);
+    const booking = await getAdminBookingById(id);
 
     if (!booking) {
       return NextResponse.json(

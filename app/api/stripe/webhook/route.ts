@@ -1,13 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import Stripe from 'stripe';
 import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
 import { generateBookingReference } from '@/lib/utils';
+import { Prisma } from '@prisma/client';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const body = await request.text();
-  const headersList = headers();
+  const headersList = await headers();
   const signature = headersList.get('stripe-signature');
 
   if (!signature) {
@@ -43,46 +44,50 @@ export async function POST(request: Request) {
         const metadata = session.metadata!;
         const bookingReference = generateBookingReference();
 
-        const booking = await prisma.booking.create({
-          data: {
-            bookingReference,
-            userId: metadata.userId !== 'guest' ? metadata.userId : undefined,
-            
-            // Hotel info
-            hotelId: metadata.hotelId,
-            hotelName: metadata.hotelName,
-            hotelLocation: metadata.hotelLocation,
-            hotelStarRating: 4,
-            hotelImage: session.line_items?.data[0]?.price?.product?.toString(),
-            
-            // Booking details
-            checkIn: new Date(metadata.checkIn),
-            checkOut: new Date(metadata.checkOut),
-            roomType: metadata.roomType,
-            numberOfRooms: parseInt(metadata.rooms),
-            numberOfGuests: parseInt(metadata.adults) + parseInt(metadata.children),
-            adults: parseInt(metadata.adults),
-            children: parseInt(metadata.children),
-            
-            // Guest info
-            guestName: metadata.guestName,
-            guestEmail: metadata.guestEmail,
-            guestPhone: metadata.guestPhone,
-            specialRequests: metadata.specialRequests,
-            
-            // Pricing
-            roomRate: parseFloat(metadata.roomRate),
-            taxes: parseFloat(metadata.taxes),
-            totalAmount: session.amount_total! / 100, // Convert from cents
-            currency: session.currency?.toUpperCase() || 'GBP',
-            
-            // Payment
-            status: 'CONFIRMED',
-            paymentStatus: 'PAID',
-            stripeSessionId: session.id,
-            stripePaymentId: session.payment_intent as string,
-          },
-        });
+        const data: Prisma.BookingUncheckedCreateInput = {
+          bookingReference,
+          // Satisfy non-null string requirement; override below if real user
+          userId: '',
+          // Hotel info
+          hotelId: metadata.hotelId,
+          hotelName: metadata.hotelName,
+          hotelLocation: metadata.hotelLocation,
+          hotelStarRating: 4,
+          hotelImage: session.line_items?.data[0]?.price?.product?.toString(),
+
+          // Booking details
+          checkIn: new Date(metadata.checkIn),
+          checkOut: new Date(metadata.checkOut),
+          roomType: metadata.roomType,
+          numberOfRooms: parseInt(metadata.rooms),
+          numberOfGuests: parseInt(metadata.adults) + parseInt(metadata.children),
+          adults: parseInt(metadata.adults),
+          children: parseInt(metadata.children),
+
+          // Guest info
+          guestName: metadata.guestName,
+          guestEmail: metadata.guestEmail,
+          guestPhone: metadata.guestPhone,
+          specialRequests: metadata.specialRequests,
+
+          // Pricing
+          roomRate: parseFloat(metadata.roomRate),
+          taxes: parseFloat(metadata.taxes),
+          totalAmount: session.amount_total! / 100, // Convert from cents
+          currency: session.currency?.toUpperCase() || 'GBP',
+
+          // Payment
+          status: 'CONFIRMED',
+          paymentStatus: 'PAID',
+          stripeSessionId: session.id,
+          stripePaymentId: session.payment_intent as string,
+        };
+
+        if (metadata.userId && metadata.userId !== 'guest') {
+          data.userId = metadata.userId as string;
+        }
+
+        const booking = await prisma.booking.create({ data });
 
         console.log('✅ Booking created:', bookingReference);
 

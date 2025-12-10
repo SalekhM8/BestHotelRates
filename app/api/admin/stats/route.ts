@@ -1,12 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { verify } from 'jsonwebtoken';
 
-export async function GET() {
+export async function GET(_request: NextRequest) {
   try {
     // Verify admin token
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const token = cookieStore.get('admin-token');
 
     if (!token) {

@@ -869,7 +869,7 @@ async function seedHotels() {
         minRate,
         maxRate,
         featured: hotel.featured ?? false,
-        tags: hotel.tags,
+        tags: (hotel.tags ?? []) as any,
         supplier: hotel.supplierCode
           ? {
               connect: { code: hotel.supplierCode },
@@ -978,9 +978,10 @@ async function seedHotels() {
             maxStay: ratePlan.maxStay ?? 21,
             availableRooms: ratePlan.availableRooms ?? 3,
             includeBreakfast: ratePlan.includeBreakfast ?? false,
-            nightlyBreakdown: ratePlan.nightlyBreakdown ?? [{ label: 'Night 1', amount: ratePlan.baseRate }],
-            promotions: ratePlan.promotions,
-            inclusions: ratePlan.inclusions,
+            nightlyBreakdown:
+              ratePlan.nightlyBreakdown ?? [{ label: 'Night 1', amount: ratePlan.baseRate }],
+            promotions: ratePlan.promotions ?? [],
+            inclusions: ratePlan.inclusions ?? [],
             supplierRateId: `${slugify(ratePlan.name)}-${Math.floor(Math.random() * 9999)}`,
             freeCancellationUntil: ratePlan.isRefundable
               ? new Date(Date.now() + 72 * 60 * 60 * 1000)

@@ -1,11 +1,14 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
 
-export default function PaymentSuccessPage() {
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
+function PaymentSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -26,21 +29,19 @@ export default function PaymentSuccessPage() {
     }
   }, [searchParams]);
 
-  if (loading) {
-    return (
-      <main className="relative min-h-screen flex items-center justify-center p-6">
+  const content = () => {
+    if (loading) {
+      return (
         <GlassCard>
           <div className="text-center py-12">
             <div className="w-16 h-16 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-6" />
             <p className="text-white text-lg">Processing your booking...</p>
           </div>
         </GlassCard>
-      </main>
-    );
-  }
+      );
+    }
 
-  return (
-    <main className="relative min-h-screen flex items-center justify-center p-6">
+    return (
       <div className="w-full max-w-2xl">
         <GlassCard>
           <div className="text-center py-12">
@@ -100,6 +101,27 @@ export default function PaymentSuccessPage() {
           </div>
         </GlassCard>
       </div>
+    );
+  };
+
+  return content();
+}
+
+export default function PaymentSuccessPage() {
+  return (
+    <main className="relative min-h-screen flex items-center justify-center p-6">
+      <Suspense
+        fallback={
+          <GlassCard>
+            <div className="text-center py-12">
+              <div className="w-16 h-16 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-6" />
+              <p className="text-white text-lg">Loading...</p>
+            </div>
+          </GlassCard>
+        }
+      >
+        <PaymentSuccessContent />
+      </Suspense>
     </main>
   );
 }

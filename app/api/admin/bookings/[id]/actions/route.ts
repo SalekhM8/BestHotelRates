@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin, AdminAuthError } from '@/lib/admin-auth';
 import { getAdminBookingById } from '@/lib/admin-bookings';
@@ -10,11 +10,12 @@ type ActionPayload = {
   reason?: string;
 };
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const admin = await requireAdmin();
     const { action, note, refundAmount, reason }: ActionPayload = await request.json();
-    const booking = await prisma.booking.findUnique({ where: { id: params.id } });
+    const booking = await prisma.booking.findUnique({ where: { id } });
 
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
@@ -114,7 +115,7 @@ async function logActivity(
       message,
       actor,
       actorRole: 'ADMIN',
-      metadata,
+      metadata: (metadata as any) ?? {},
     },
   });
 }
