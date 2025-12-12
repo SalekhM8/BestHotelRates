@@ -6,6 +6,7 @@ import { HotelCardDynamic } from '@/components/hotel/HotelCardDynamic';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { FilterPanel, SearchFilters } from '@/components/search/FilterPanel';
 import { SortDropdown, SortOption } from '@/components/search/SortDropdown';
+import { MapView } from '@/components/search/MapView';
 import { SupplierHotelSummary } from '@/lib/suppliers/types';
 
 export const dynamic = 'force-dynamic';
@@ -279,6 +280,19 @@ function SearchPageInner() {
                   </button>
                 </div>
               </GlassCard>
+            ) : viewMode === 'map' ? (
+              <>
+                {/* Results Count */}
+                <p className="text-white/80 mb-4">
+                  <span className="font-bold text-white">{filteredHotels.length}</span> hotels found
+                </p>
+
+                {/* Map View */}
+                <MapView
+                  hotels={filteredHotels}
+                  destination={destination}
+                />
+              </>
             ) : (
               <>
                 {/* Results Count */}

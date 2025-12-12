@@ -39,6 +39,7 @@ export type SupplierHotelSummary = {
     paymentType: PaymentType;
     baseRate: number;
     currency: string;
+    isRefundable: boolean;
   } | null;
 };
 

@@ -7,6 +7,9 @@ import { getFeaturedHotelsByCity } from '@/lib/hotels-data';
 import { SupplierHotelSummary } from '@/lib/suppliers/types';
 import Image from 'next/image';
 
+// Force dynamic to prevent prerendering (requires database connection)
+export const dynamic = 'force-dynamic';
+
 const toCardProps = (hotel: SupplierHotelSummary) => {
   const tags = Array.isArray(hotel.tags)
     ? hotel.tags.filter((tag): tag is string => typeof tag === 'string')

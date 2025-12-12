@@ -228,6 +228,7 @@ function toHotelSummary(hotel: any): SupplierHotelSummary {
           paymentType: ratePlan.paymentType,
           baseRate: ratePlan.baseRate,
           currency: ratePlan.currency,
+          isRefundable: ratePlan.isRefundable,
         }
       : null,
   };

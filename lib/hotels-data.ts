@@ -34,6 +34,7 @@ export type BookingSelectionPayload = {
     location: string;
     heroImage?: string | null;
     currency: string;
+    supplierCode?: string | null;
   };
   roomType: {
     id: string;
@@ -43,7 +44,9 @@ export type BookingSelectionPayload = {
     maxChildren: number;
     maxOccupancy: number;
   };
-  ratePlan: SupplierHotelDetails['roomTypes'][number]['ratePlans'][number];
+  ratePlan: SupplierHotelDetails['roomTypes'][number]['ratePlans'][number] & {
+    cancellationDeadline?: string | null;
+  };
   dates: {
     checkIn: string;
     checkOut: string;
@@ -132,6 +135,11 @@ export async function getBookingSelectionPayload(
   const addOnTotal = addOnBreakdown.reduce((sum, addOn) => sum + addOn.total, 0);
   const total = subtotal + taxesTotal + feesTotal + addOnTotal;
 
+  // Calculate cancellation deadline from policy
+  const cancellationDeadline = ratePlan.cancellationPolicy?.refundableUntilHours
+    ? new Date(Date.now() + ratePlan.cancellationPolicy.refundableUntilHours * 60 * 60 * 1000).toISOString()
+    : null;
+
   return {
     hotel: {
       id: hotel.id,
@@ -139,6 +147,7 @@ export async function getBookingSelectionPayload(
       location: hotel.location,
       heroImage: hotel.heroImage,
       currency: hotel.currency,
+      supplierCode: hotel.supplierCode,
     },
     roomType: {
       id: roomType.id,
@@ -148,7 +157,10 @@ export async function getBookingSelectionPayload(
       maxChildren: roomType.maxChildren,
       maxOccupancy: roomType.maxOccupancy,
     },
-    ratePlan,
+    ratePlan: {
+      ...ratePlan,
+      cancellationDeadline,
+    },
     dates: {
       checkIn: checkIn.toISOString(),
       checkOut: checkOut.toISOString(),

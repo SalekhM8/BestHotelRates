@@ -42,6 +42,7 @@ const buildHotelSummary = (
           paymentType: minRatePlan.paymentType,
           baseRate: minRatePlan.baseRate,
           currency: minRatePlan.currency,
+          isRefundable: minRatePlan.isRefundable ?? false,
         }
       : null,
   };

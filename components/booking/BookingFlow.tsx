@@ -29,9 +29,15 @@ type Props = {
 
 export function BookingFlowClient({ initialSelection, user }: Props) {
   const router = useRouter();
-  const [step, setStep] = useState<'guest-info' | 'summary' | 'payment'>('guest-info');
+  const [step, setStep] = useState<'guest-info' | 'summary' | 'prebook' | 'payment'>('guest-info');
   const [bookingData, setBookingData] = useState<GuestInfoForm | null>(null);
   const [loading, setLoading] = useState(false);
+  const [prebookResult, setPrebookResult] = useState<{
+    success: boolean;
+    confirmedPrice?: number;
+    priceChanged?: boolean;
+    error?: string;
+  } | null>(null);
 
   const form = useForm<GuestInfoForm>({
     resolver: zodResolver(guestInfoSchema),
@@ -48,15 +54,58 @@ export function BookingFlowClient({ initialSelection, user }: Props) {
     setStep('summary');
   };
 
-  const handleProceedToPayment = async () => {
+  // Prebook step - validates rate availability before payment
+  const handlePrebook = async () => {
     if (!user) {
       const proceed = window.confirm('Continue as guest? Your booking will not be saved to an account.');
       if (!proceed) return;
     }
 
     if (!bookingData) return;
+    setStep('prebook');
+    setLoading(true);
+    setPrebookResult(null);
+
+    try {
+      const response = await fetch('/api/prebook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplierCode: initialSelection.hotel.supplierCode || 'LOCAL',
+          ratePlanId: initialSelection.ratePlan.id,
+          bookHash: initialSelection.ratePlan.id, // For RateHawk, this is the book_hash
+          rateKey: initialSelection.ratePlan.id, // For HotelBeds, this is the rateKey
+          totalAmount: initialSelection.pricing.total,
+          currency: initialSelection.ratePlan.currency,
+        }),
+      });
+
+      const result = await response.json();
+      setPrebookResult(result);
+
+      if (result.success) {
+        // Rate confirmed, proceed to payment
+        await handleProceedToPayment(result.confirmedPrice || initialSelection.pricing.total);
+      } else {
+        // Rate not available or price changed
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Prebook error:', error);
+      setPrebookResult({
+        success: false,
+        error: 'Failed to verify rate availability. Please try again.',
+      });
+      setLoading(false);
+    }
+  };
+
+  const handleProceedToPayment = async (confirmedTotal?: number) => {
+    if (!bookingData) return;
     setStep('payment');
     setLoading(true);
+
+    const totalToCharge = confirmedTotal || initialSelection.pricing.total;
 
     try {
       const response = await fetch('/api/stripe/checkout', {
@@ -80,9 +129,10 @@ export function BookingFlowClient({ initialSelection, user }: Props) {
           specialRequests: bookingData.specialRequests,
           roomRate: initialSelection.pricing.subtotal,
           taxes: initialSelection.pricing.taxes + initialSelection.pricing.fees,
-          totalAmount: initialSelection.pricing.total,
+          totalAmount: totalToCharge,
           currency: initialSelection.ratePlan.currency,
           addOns: initialSelection.addOns.selected,
+          supplierCode: initialSelection.hotel.supplierCode,
         }),
       });
 
@@ -114,7 +164,9 @@ export function BookingFlowClient({ initialSelection, user }: Props) {
           <div className="w-12 h-0.5 bg-white/20" />
           <StepBadge label="Summary" index={2} active={step === 'summary'} />
           <div className="w-12 h-0.5 bg-white/20" />
-          <StepBadge label="Payment" index={3} active={step === 'payment'} />
+          <StepBadge label="Confirm" index={3} active={step === 'prebook'} />
+          <div className="w-12 h-0.5 bg-white/20" />
+          <StepBadge label="Payment" index={4} active={step === 'payment'} />
         </div>
       </div>
 
@@ -189,15 +241,57 @@ export function BookingFlowClient({ initialSelection, user }: Props) {
                 <Button variant="secondary" onClick={() => setStep('guest-info')} fullWidth>
                   Back
                 </Button>
-                <Button onClick={handleProceedToPayment} fullWidth>
-                  Proceed to Payment
+                <Button onClick={handlePrebook} fullWidth loading={loading}>
+                  Confirm & Pay
                 </Button>
               </div>
             </GlassCard>
           )}
 
+          {step === 'prebook' && (
+            <GlassCard className="py-12">
+              {loading && !prebookResult && (
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4" />
+                  <h2 className="text-2xl font-bold text-white mb-2">Verifying Availability</h2>
+                  <p className="text-white/70">Confirming your rate with the hotel...</p>
+                </div>
+              )}
+
+              {prebookResult && !prebookResult.success && (
+                <div className="text-center">
+                  <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </div>
+                  <h2 className="text-2xl font-bold text-white mb-2">Rate Unavailable</h2>
+                  <p className="text-white/70 mb-6">
+                    {prebookResult.error || 'This rate is no longer available. Please select another option.'}
+                  </p>
+                  {prebookResult.priceChanged && prebookResult.confirmedPrice && (
+                    <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl mb-6">
+                      <p className="text-yellow-200">
+                        New price: {formatCurrency(initialSelection.ratePlan.currency, prebookResult.confirmedPrice)}
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex gap-3 justify-center">
+                    <Button variant="secondary" onClick={() => router.back()}>
+                      Choose Another Room
+                    </Button>
+                    <Button onClick={() => setStep('summary')}>
+                      Try Again
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </GlassCard>
+          )}
+
           {step === 'payment' && (
             <GlassCard className="text-center py-16">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-white mb-4">Redirecting to payment...</h2>
               <p className="text-white/70">Please wait while we secure your booking.</p>
             </GlassCard>
@@ -296,6 +390,35 @@ export function BookingFlowClient({ initialSelection, user }: Props) {
                 </span>
               </div>
             </div>
+
+            {/* Cancellation Policy */}
+            {initialSelection.ratePlan.isRefundable && (
+              <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
+                <div className="flex items-center gap-2 text-green-400 font-semibold mb-1">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Free Cancellation
+                </div>
+                <p className="text-sm text-green-200/70">
+                  Cancel for free until {initialSelection.ratePlan.cancellationDeadline || '48 hours before check-in'}
+                </p>
+              </div>
+            )}
+
+            {!initialSelection.ratePlan.isRefundable && (
+              <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+                <div className="flex items-center gap-2 text-yellow-400 font-semibold mb-1">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  Non-Refundable
+                </div>
+                <p className="text-sm text-yellow-200/70">
+                  This rate cannot be cancelled or modified
+                </p>
+              </div>
+            )}
           </GlassCard>
         </div>
       </div>
@@ -334,4 +457,3 @@ const formatDate = (value: string) =>
   new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(
     new Date(value),
   );
-
