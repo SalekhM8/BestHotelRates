@@ -19,6 +19,7 @@ interface HotelCardDynamicProps {
   tags?: string[];
   isFavorite?: boolean;
   onFavoriteToggle?: (hotelId: string, isFavorite: boolean) => void;
+  layout?: 'vertical' | 'horizontal';
 }
 
 export const HotelCardDynamic: React.FC<HotelCardDynamicProps> = ({
@@ -35,6 +36,7 @@ export const HotelCardDynamic: React.FC<HotelCardDynamicProps> = ({
   tags,
   isFavorite = false,
   onFavoriteToggle,
+  layout = 'vertical',
 }) => {
   const [favorite, setFavorite] = useState(isFavorite);
   const [loading, setLoading] = useState(false);
@@ -134,6 +136,98 @@ export const HotelCardDynamic: React.FC<HotelCardDynamicProps> = ({
     router.push(`/hotels/${slug ?? id}`);
   };
 
+  // Horizontal layout for list view
+  if (layout === 'horizontal') {
+    return (
+      <div className="glass-card p-0 cursor-pointer group overflow-hidden" onClick={handleCardClick}>
+        <div className="flex flex-col sm:flex-row">
+          {/* Image */}
+          <div className="relative w-full sm:w-72 h-48 sm:h-auto sm:min-h-[200px] flex-shrink-0">
+            <Image
+              src={displayImage}
+              alt={name}
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-500"
+              sizes="(max-width: 640px) 100vw, 288px"
+            />
+            
+            {/* Heart Button */}
+            <button
+              onClick={handleFavoriteClick}
+              disabled={loading}
+              className={`absolute top-3 right-3 w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center hover:bg-black/60 hover:scale-110 transition-all z-10 ${
+                loading ? 'opacity-50' : ''
+              }`}
+            >
+              <svg
+                className="w-5 h-5"
+                viewBox="0 0 24 24"
+                fill={favorite ? '#ff385c' : 'none'}
+                stroke={favorite ? '#ff385c' : 'white'}
+                strokeWidth="2"
+              >
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+              </svg>
+            </button>
+
+            {/* Badge */}
+            <div className="absolute top-3 left-3 bg-white/95 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-800 shadow-lg">
+              {badge ?? 'Guest favorite'}
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 p-4 sm:p-5 flex flex-col justify-between">
+            <div>
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <h3 className="text-lg font-semibold text-white leading-tight flex-1">
+                  {name}
+                </h3>
+                <div className="flex items-center gap-1 text-white text-sm font-semibold shrink-0 bg-blue-500/30 px-2 py-1 rounded-lg">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="#FFD700">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                  </svg>
+                  {rating.toFixed(1)}
+                </div>
+              </div>
+
+              <p className="text-sm text-white/70 mb-3">
+                📍 {location}
+              </p>
+
+              <p className="text-sm text-white/60 mb-3">
+                {highlight ?? 'Multiple room options available'}
+              </p>
+
+              {tags && tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {tags.slice(0, 4).map((tag) => (
+                    <span key={tag} className="text-xs text-white/70 bg-white/10 px-2 py-1 rounded-full">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-end justify-between pt-3 border-t border-white/10">
+              <div className="text-white/60 text-sm">
+                From
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-white">
+                  {priceLabel}
+                </div>
+                {startingRate && <span className="text-xs text-white/60">per night</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Default vertical layout
   return (
     <div className="glass-card p-0 cursor-pointer group overflow-hidden" onClick={handleCardClick}>
       {/* Image */}

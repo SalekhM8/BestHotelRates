@@ -202,7 +202,10 @@ export default function BookingsPage() {
                       </p>
                     </div>
 
-                    <button className="glass-card-small px-6 py-2 text-sm font-semibold">
+                    <button
+                      onClick={() => router.push(`/bookings/${booking.id}`)}
+                      className="glass-card-small px-6 py-2 text-sm font-semibold"
+                    >
                       View Details
                     </button>
                   </div>

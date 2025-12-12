@@ -5,6 +5,7 @@ import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
 import { generateBookingReference } from '@/lib/utils';
 import { Prisma } from '@prisma/client';
+import { sendBookingConfirmationEmail, sendAdminNotificationEmail } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
@@ -91,8 +92,29 @@ export async function POST(request: NextRequest) {
 
         console.log('✅ Booking created:', bookingReference);
 
-        // TODO: Send confirmation email
-        // TODO: Send admin notification email
+        // Send confirmation email to customer
+        const emailData = {
+          bookingReference,
+          guestName: metadata.guestName,
+          guestEmail: metadata.guestEmail,
+          hotelName: metadata.hotelName,
+          hotelLocation: metadata.hotelLocation,
+          checkIn: new Date(metadata.checkIn),
+          checkOut: new Date(metadata.checkOut),
+          roomType: metadata.roomType,
+          numberOfRooms: parseInt(metadata.rooms),
+          numberOfGuests: parseInt(metadata.adults) + parseInt(metadata.children),
+          totalAmount: session.amount_total! / 100,
+          currency: session.currency?.toUpperCase() || 'GBP',
+        };
+
+        // Send emails in parallel (non-blocking)
+        Promise.all([
+          sendBookingConfirmationEmail(emailData),
+          sendAdminNotificationEmail(emailData),
+        ]).catch((err) => {
+          console.error('Email sending failed:', err);
+        });
         
       } catch (error) {
         console.error('Error creating booking:', error);
