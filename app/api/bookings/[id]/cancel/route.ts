@@ -105,10 +105,10 @@ export async function POST(
 
     // Process Stripe refund if applicable
     let refundId: string | null = null;
-    if (refundAmount && refundAmount > 0 && booking.stripePaymentIntentId) {
+    if (refundAmount && refundAmount > 0 && booking.stripePaymentId) {
       try {
         // Get the payment intent to find the charge
-        const paymentIntent = await stripe.paymentIntents.retrieve(booking.stripePaymentIntentId);
+        const paymentIntent = await stripe.paymentIntents.retrieve(booking.stripePaymentId);
         
         if (paymentIntent.latest_charge) {
           const refund = await stripe.refunds.create({
