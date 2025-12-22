@@ -40,6 +40,7 @@ export type SupplierHotelSummary = {
     baseRate: number;
     currency: string;
     isRefundable: boolean;
+    availableRooms?: number;
   } | null;
 };
 
@@ -118,10 +119,16 @@ export type SupplierHotelDetails = SupplierHotelSummary & {
   description?: string | null;
   reviewScore?: number | null;
   reviewCount: number;
-  amenities: SupplierAmenity[];
+  amenities: SupplierAmenity[] | string[];
   images: SupplierImage[];
   addOns: SupplierAddOn[];
   roomTypes: SupplierRoomType[];
+  latitude?: number;
+  longitude?: number;
+  address?: string;
+  email?: string;
+  phone?: string;
+  website?: string;
 };
 
 export interface SupplierAdapter {

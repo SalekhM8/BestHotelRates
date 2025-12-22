@@ -6,7 +6,7 @@ import { HotelCardDynamic } from '@/components/hotel/HotelCardDynamic';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { FilterPanel, SearchFilters } from '@/components/search/FilterPanel';
 import { SortDropdown, SortOption } from '@/components/search/SortDropdown';
-import { MapView } from '@/components/search/MapView';
+import { GoogleMapView } from '@/components/search/GoogleMapView';
 import { SupplierHotelSummary } from '@/lib/suppliers/types';
 
 export const dynamic = 'force-dynamic';
@@ -29,6 +29,9 @@ const toCardProps = (hotel: SupplierHotelSummary) => {
     highlight: hotel.minRatePlan?.name,
     badge: hotel.categories[0]?.replace(/-/g, ' '),
     tags,
+    // Urgency & free cancellation indicators
+    availableRooms: hotel.minRatePlan?.availableRooms,
+    isRefundable: hotel.minRatePlan?.isRefundable,
   };
 };
 
@@ -114,7 +117,36 @@ function SearchPageInner() {
     return result;
   }, [hotels, filters, sortBy]);
 
+  // Store search context in sessionStorage for back navigation
+  useEffect(() => {
+    if (destination) {
+      sessionStorage.setItem('lastSearchDestination', destination);
+    }
+  }, [destination]);
+
+  // Restore destination from sessionStorage if not in URL
+  useEffect(() => {
+    if (!destination) {
+      const savedDestination = sessionStorage.getItem('lastSearchDestination');
+      if (savedDestination) {
+        router.replace(`/search?destination=${encodeURIComponent(savedDestination)}`);
+      }
+    }
+  }, [destination, router]);
+
   const fetchHotels = useCallback(async () => {
+    // Don't fetch if no destination - wait for redirect
+    if (!destination) {
+      const savedDestination = sessionStorage.getItem('lastSearchDestination');
+      if (savedDestination) {
+        // Will be redirected, don't fetch yet
+        return;
+      }
+      // No saved destination, default to London
+      router.replace('/search?destination=London');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -122,7 +154,7 @@ function SearchPageInner() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          destination: destination || undefined,
+          destination,
           checkIn: checkIn || undefined,
           checkOut: checkOut || undefined,
         }),
@@ -140,7 +172,7 @@ function SearchPageInner() {
     } finally {
       setLoading(false);
     }
-  }, [destination, checkIn, checkOut]);
+  }, [destination, checkIn, checkOut, router]);
 
   useEffect(() => {
     fetchHotels();
@@ -288,9 +320,17 @@ function SearchPageInner() {
                 </p>
 
                 {/* Map View */}
-                <MapView
-                  hotels={filteredHotels}
-                  destination={destination}
+                <GoogleMapView
+                  hotels={filteredHotels.map(h => ({
+                    id: h.id,
+                    slug: h.slug,
+                    name: h.name,
+                    location: h.location,
+                    rating: h.rating,
+                    startingRate: h.startingRate,
+                    currency: h.currency,
+                    image: h.primaryImage ?? h.heroImage,
+                  }))}
                 />
               </>
             ) : (

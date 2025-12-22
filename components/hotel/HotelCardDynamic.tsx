@@ -17,6 +17,8 @@ interface HotelCardDynamicProps {
   highlight?: string;
   badge?: string;
   tags?: string[];
+  availableRooms?: number;
+  isRefundable?: boolean;
   isFavorite?: boolean;
   onFavoriteToggle?: (hotelId: string, isFavorite: boolean) => void;
   layout?: 'vertical' | 'horizontal';
@@ -34,6 +36,8 @@ export const HotelCardDynamic: React.FC<HotelCardDynamicProps> = ({
   highlight,
   badge,
   tags,
+  availableRooms,
+  isRefundable,
   isFavorite = false,
   onFavoriteToggle,
   layout = 'vertical',
@@ -42,9 +46,9 @@ export const HotelCardDynamic: React.FC<HotelCardDynamicProps> = ({
   const [loading, setLoading] = useState(false);
   const { data: session } = useSession();
   const router = useRouter();
-  const fallbackImage =
-    'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&h=800&fit=crop';
-  const displayImage = image || fallbackImage;
+  // No fallback - only show real HotelBeds images
+  const displayImage = image || null;
+  const hasImage = Boolean(displayImage);
   const priceLabel =
     startingRate && startingRate > 0
       ? new Intl.NumberFormat('en-GB', {
@@ -142,14 +146,22 @@ export const HotelCardDynamic: React.FC<HotelCardDynamicProps> = ({
       <div className="glass-card p-0 cursor-pointer group overflow-hidden" onClick={handleCardClick}>
         <div className="flex flex-col sm:flex-row">
           {/* Image */}
-          <div className="relative w-full sm:w-72 h-48 sm:h-auto sm:min-h-[200px] flex-shrink-0">
-            <Image
-              src={displayImage}
-              alt={name}
-              fill
-              className="object-cover group-hover:scale-105 transition-transform duration-500"
-              sizes="(max-width: 640px) 100vw, 288px"
-            />
+          <div className="relative w-full sm:w-72 h-48 sm:h-auto sm:min-h-[200px] flex-shrink-0 bg-white/5">
+            {hasImage ? (
+              <Image
+                src={displayImage!}
+                alt={name}
+                fill
+                className="object-cover group-hover:scale-105 transition-transform duration-500"
+                sizes="(max-width: 640px) 100vw, 288px"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-white/30">
+                <svg className="w-16 h-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+            )}
             
             {/* Heart Button */}
             <button
@@ -208,6 +220,21 @@ export const HotelCardDynamic: React.FC<HotelCardDynamicProps> = ({
                   ))}
                 </div>
               )}
+
+              {/* Urgency & Badges for horizontal layout */}
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                {availableRooms !== undefined && availableRooms <= 5 && (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-400 bg-red-500/10 px-2 py-1 rounded-full border border-red-500/30">
+                    <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                    {availableRooms === 1 ? 'Only 1 left!' : `Only ${availableRooms} left`}
+                  </span>
+                )}
+                {isRefundable && (
+                  <span className="text-xs text-green-400 bg-green-500/10 px-2 py-1 rounded-full border border-green-500/30">
+                    Free cancellation
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="flex items-end justify-between pt-3 border-t border-white/10">
@@ -231,14 +258,22 @@ export const HotelCardDynamic: React.FC<HotelCardDynamicProps> = ({
   return (
     <div className="glass-card p-0 cursor-pointer group overflow-hidden" onClick={handleCardClick}>
       {/* Image */}
-      <div className="relative h-56 sm:h-64 md:h-72 rounded-t-2xl md:rounded-t-3xl overflow-hidden">
-        <Image
-          src={displayImage}
-          alt={name}
-          fill
-          className="object-cover group-hover:scale-110 transition-transform duration-500"
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-        />
+      <div className="relative h-56 sm:h-64 md:h-72 rounded-t-2xl md:rounded-t-3xl overflow-hidden bg-white/5">
+        {hasImage ? (
+          <Image
+            src={displayImage!}
+            alt={name}
+            fill
+            className="object-cover group-hover:scale-110 transition-transform duration-500"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-white/30">
+            <svg className="w-20 h-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          </div>
+        )}
         
         {/* Heart Button */}
         <button
@@ -291,6 +326,21 @@ export const HotelCardDynamic: React.FC<HotelCardDynamicProps> = ({
             {priceLabel}
             {startingRate && <span className="text-xs text-white/60 ml-1">per night</span>}
           </div>
+        </div>
+
+        {/* Urgency & Badges */}
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {availableRooms !== undefined && availableRooms <= 5 && (
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-400 bg-red-500/10 px-2 py-1 rounded-full border border-red-500/30">
+              <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+              {availableRooms === 1 ? 'Only 1 left!' : `Only ${availableRooms} left`}
+            </span>
+          )}
+          {isRefundable && (
+            <span className="text-xs text-green-400 bg-green-500/10 px-2 py-1 rounded-full border border-green-500/30">
+              Free cancellation
+            </span>
+          )}
         </div>
 
         {tags && tags.length > 0 && (

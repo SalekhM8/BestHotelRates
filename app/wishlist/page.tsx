@@ -110,7 +110,7 @@ export default function WishlistPage() {
                 location={item.hotelLocation}
                 rating={item.hotelStarRating || 4.5}
                 price={150}
-                image={item.hotelImage || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&h=400&fit=crop'}
+                image={item.hotelImage || ''}
                 dates="Flexible"
                 roomType="Various"
                 isFavorite={true}

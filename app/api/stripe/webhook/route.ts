@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
 
         // Send confirmation email to customer
         const emailData = {
+          bookingId: booking.id,
           bookingReference,
           guestName: metadata.guestName,
           guestEmail: metadata.guestEmail,
@@ -106,6 +107,7 @@ export async function POST(request: NextRequest) {
           numberOfGuests: parseInt(metadata.adults) + parseInt(metadata.children),
           totalAmount: session.amount_total! / 100,
           currency: session.currency?.toUpperCase() || 'GBP',
+          isFreeCancellation: metadata.isFreeCancellation === 'true',
         };
 
         // Send emails in parallel (non-blocking)

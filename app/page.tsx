@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import Link from 'next/link';
 import { AdvancedSearchBar } from '@/components/hotel/AdvancedSearchBar';
 import { HotelCardDynamic } from '@/components/hotel/HotelCardDynamic';
+import { RecentlyViewedSection } from '@/components/hotel/RecentlyViewedSection';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { getFeaturedHotelsByCity } from '@/lib/hotels-data';
 import { SupplierHotelSummary } from '@/lib/suppliers/types';
@@ -45,11 +46,27 @@ function HotelCardSkeleton() {
 }
 
 export default async function HomePage() {
-  const [hotelsLondon, hotelsDubai, hotelsParis] = await Promise.all([
-    getFeaturedHotelsByCity('London'),
-    getFeaturedHotelsByCity('Dubai'),
-    getFeaturedHotelsByCity('Paris'),
-  ]);
+  // Try to fetch hotels, but handle API failures gracefully
+  let hotelsLondon: Awaited<ReturnType<typeof getFeaturedHotelsByCity>> = [];
+  let hotelsDubai: Awaited<ReturnType<typeof getFeaturedHotelsByCity>> = [];
+  let hotelsParis: Awaited<ReturnType<typeof getFeaturedHotelsByCity>> = [];
+  let apiError: string | null = null;
+
+  try {
+    // Fetch London first - if quota is limited, at least show something
+    hotelsLondon = await getFeaturedHotelsByCity('London');
+    
+    // Only fetch other cities if London succeeded
+    if (hotelsLondon.length > 0) {
+      [hotelsDubai, hotelsParis] = await Promise.all([
+        getFeaturedHotelsByCity('Dubai'),
+        getFeaturedHotelsByCity('Paris'),
+      ]);
+    }
+  } catch (err: any) {
+    console.error('Failed to fetch hotels:', err.message);
+    apiError = err.message || 'Failed to fetch hotels from HotelBeds API';
+  }
 
   return (
     <main className="relative min-h-screen pb-32 md:pb-24">
@@ -93,6 +110,32 @@ export default async function HomePage() {
           </Link>
         </div>
       </div>
+
+      {/* Recently Viewed Hotels */}
+      <RecentlyViewedSection />
+
+      {/* API Error Alert */}
+      {apiError && (
+        <div className="max-w-[1600px] mx-auto px-4 md:px-6 mb-8">
+          <div className="glass-card p-6 border-2 border-red-500/50 bg-red-500/10">
+            <div className="flex items-start gap-4">
+              <div className="text-red-400 text-3xl">⚠️</div>
+              <div>
+                <h3 className="text-white font-bold text-lg mb-2">HotelBeds API Error</h3>
+                <p className="text-white/80 mb-3">{apiError}</p>
+                <p className="text-white/60 text-sm">
+                  The HotelBeds sandbox has quota limits. Options:
+                </p>
+                <ul className="text-white/60 text-sm list-disc list-inside mt-2">
+                  <li>Wait for quota to reset (usually daily)</li>
+                  <li>Get production API credentials</li>
+                  <li>Set DEFAULT_SUPPLIER=LOCAL in .env to use seeded database</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hotel Listings - Featured Only (Lazy Loaded) */}
       <div className="max-w-[1600px] mx-auto px-4 md:px-6 relative z-0">

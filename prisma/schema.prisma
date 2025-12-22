@@ -66,17 +66,21 @@ model Booking {
   currency           String        @default("GBP")
   status             BookingStatus @default(PENDING)
   paymentStatus      PaymentStatus @default(PENDING)
-  stripeSessionId    String?
-  stripePaymentId    String?
-  etgBookingId       String?
-  cancellationPolicy String?
-  paymentDueDate     DateTime?
-  automaticCancelAt  DateTime?
-  isFreeCancellation Boolean       @default(false)
-  isUnpaid           Boolean       @default(false)
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-  metadata           Json?
+  stripeSessionId       String?
+  stripePaymentId       String?
+  stripePaymentIntentId String?
+  etgBookingId          String?
+  cancellationPolicy    String?
+  paymentDueDate        DateTime?
+  automaticCancelAt     DateTime?
+  isFreeCancellation    Boolean       @default(false)
+  isUnpaid              Boolean       @default(false)
+  cancelledAt           DateTime?
+  refundAmount          Float?
+  refundId              String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  metadata              Json?
   user               User          @relation(fields: [userId], references: [id])
   rooms              BookingRoom[]
   activities         BookingActivity[]

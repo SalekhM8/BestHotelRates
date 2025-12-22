@@ -8,6 +8,9 @@ import { useRouter } from 'next/navigation';
 import { SupplierHotelDetails } from '@/lib/suppliers/types';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
+import { useRecentlyViewed } from '@/lib/hooks/useRecentlyViewed';
+
+// No placeholder - only show real HotelBeds images
 
 type Props = {
   hotel: SupplierHotelDetails;
@@ -15,7 +18,26 @@ type Props = {
 
 export const HotelDetailsClient: React.FC<Props> = ({ hotel }) => {
   const router = useRouter();
-  const primaryImage = hotel.images[0];
+  const { addRecentlyViewed } = useRecentlyViewed();
+  
+  // Track this hotel as recently viewed
+  useEffect(() => {
+    addRecentlyViewed({
+      id: hotel.id,
+      slug: hotel.slug,
+      name: hotel.name,
+      location: hotel.location,
+      rating: hotel.rating,
+      startingRate: hotel.startingRate,
+      currency: hotel.currency,
+      image: hotel.primaryImage ?? hotel.heroImage,
+    });
+  }, [hotel.id]); // Only run once when hotel changes
+  
+  // Use only real HotelBeds images - no placeholders
+  const images = hotel.images;
+  const hasImages = images.length > 0;
+  const primaryImage = hasImages ? images[0] : null;
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [selectedRatePlanId, setSelectedRatePlanId] = useState<string | null>(null);
@@ -255,29 +277,49 @@ export const HotelDetailsClient: React.FC<Props> = ({ hotel }) => {
       {/* Hero */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <div className="md:col-span-3">
-          <div className="relative h-64 md:h-96 lg:h-[520px] rounded-3xl overflow-hidden glass-card p-0">
-            <Image
-              src={hotel.images[currentImageIndex]?.url ?? primaryImage?.url ?? ''}
-              alt={hotel.name}
-              fill
-              className="object-cover"
-              priority
-            />
+          <div className="relative h-64 md:h-96 lg:h-[520px] rounded-3xl overflow-hidden glass-card p-0 bg-white/5">
+            {hasImages && images[currentImageIndex]?.url ? (
+              <Image
+                src={images[currentImageIndex].url}
+                alt={hotel.name}
+                fill
+                className="object-cover"
+                priority
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-white/30">
+                <div className="text-center">
+                  <svg className="w-24 h-24 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                  <p className="text-sm">No images available from HotelBeds</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-1 gap-3">
-          {hotel.images.slice(0, 4).map((img, index) => (
-            <button
-              key={img.id}
-              onClick={() => setCurrentImageIndex(index)}
-              className={`relative h-32 md:h-40 lg:h-[180px] rounded-2xl overflow-hidden glass-card p-0 border ${
-                currentImageIndex === index ? 'border-white/60' : 'border-transparent'
-              }`}
-            >
-              <Image src={img.url} alt={img.caption ?? hotel.name} fill className="object-cover" />
-            </button>
-          ))}
-        </div>
+        {hasImages && (
+          <div className="grid grid-cols-2 md:grid-cols-1 gap-3">
+            {images.slice(0, 4).map((img, index) => (
+              <button
+                key={img.id}
+                onClick={() => setCurrentImageIndex(index)}
+                className={`relative h-32 md:h-40 lg:h-[180px] rounded-2xl overflow-hidden glass-card p-0 border ${
+                  currentImageIndex === index ? 'border-white/60' : 'border-transparent'
+                }`}
+              >
+                {img.url && (
+                  <Image 
+                    src={img.url} 
+                    alt={img.caption ?? hotel.name} 
+                    fill 
+                    className="object-cover" 
+                  />
+                )}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Overview */}
@@ -309,12 +351,16 @@ export const HotelDetailsClient: React.FC<Props> = ({ hotel }) => {
           <GlassCard>
             <h2 className="text-2xl font-bold text-white mb-4">Amenities</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {hotel.amenities.map((amenity) => (
-                <div key={amenity.id} className="text-white/80 text-sm flex items-center gap-2">
-                  <span className="w-2 h-2 bg-white/40 rounded-full" />
-                  {amenity.name}
-                </div>
-              ))}
+              {hotel.amenities.map((amenity, idx) => {
+                const amenityName = typeof amenity === 'string' ? amenity : amenity.name;
+                const amenityKey = typeof amenity === 'string' ? `${amenity}-${idx}` : amenity.id;
+                return (
+                  <div key={amenityKey} className="text-white/80 text-sm flex items-center gap-2">
+                    <span className="w-2 h-2 bg-white/40 rounded-full" />
+                    {amenityName}
+                  </div>
+                );
+              })}
             </div>
           </GlassCard>
 
@@ -373,6 +419,21 @@ export const HotelDetailsClient: React.FC<Props> = ({ hotel }) => {
                             <p className="text-white/60 text-xs">per night · taxes excl.</p>
                           </div>
                         </div>
+
+                        {/* Urgency Indicator */}
+                        {plan.availableRooms !== undefined && plan.availableRooms <= 5 && (
+                          <div className="flex items-center gap-2 mb-3 p-2 bg-red-500/10 border border-red-500/30 rounded-lg">
+                            <span className="relative flex h-3 w-3">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                            </span>
+                            <span className="text-red-400 text-sm font-semibold">
+                              {plan.availableRooms === 1 
+                                ? 'Only 1 room left!' 
+                                : `Only ${plan.availableRooms} rooms left!`}
+                            </span>
+                          </div>
+                        )}
 
                         <div className="flex flex-wrap gap-2 mb-4">
                           {plan.addOns.map((addOn) => (

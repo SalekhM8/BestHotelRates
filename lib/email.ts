@@ -13,6 +13,7 @@ const FROM_EMAIL = process.env.FROM_EMAIL || 'bookings@besthotelrates.co.uk';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@besthotelrates.co.uk';
 
 interface BookingEmailData {
+  bookingId: string;
   bookingReference: string;
   guestName: string;
   guestEmail: string;
@@ -21,10 +22,12 @@ interface BookingEmailData {
   checkIn: Date;
   checkOut: Date;
   roomType: string;
+  ratePlan?: string;
   numberOfRooms: number;
   numberOfGuests: number;
   totalAmount: number;
   currency: string;
+  isFreeCancellation?: boolean;
 }
 
 function formatDate(date: Date): string {
@@ -133,10 +136,19 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
         <p style="color: #ffffff; font-size: 32px; font-weight: 700; margin: 0;">${formatCurrency(data.totalAmount, data.currency)}</p>
       </div>
 
-      <!-- CTA Button -->
+      <!-- CTA Buttons -->
       <div style="text-align: center; margin-top: 30px;">
-        <a href="https://best-hotel-rates.vercel.app/bookings" style="display: inline-block; background: #3b82f6; color: #ffffff; text-decoration: none; padding: 14px 30px; border-radius: 8px; font-weight: 600; font-size: 16px;">View My Booking</a>
+        <a href="https://best-hotel-rates.vercel.app/api/bookings/${data.bookingId}/voucher" style="display: inline-block; background: #22c55e; color: #ffffff; text-decoration: none; padding: 14px 30px; border-radius: 8px; font-weight: 600; font-size: 16px; margin-right: 10px;">📄 Download Voucher</a>
+        <a href="https://best-hotel-rates.vercel.app/bookings/${data.bookingId}" style="display: inline-block; background: #3b82f6; color: #ffffff; text-decoration: none; padding: 14px 30px; border-radius: 8px; font-weight: 600; font-size: 16px;">View My Booking</a>
       </div>
+      
+      ${data.isFreeCancellation ? `
+      <!-- Free Cancellation Notice -->
+      <div style="background: #dcfce7; border-radius: 12px; padding: 15px; margin-top: 25px; text-align: center;">
+        <p style="color: #166534; font-size: 14px; margin: 0; font-weight: 600;">✓ Free Cancellation Available</p>
+        <p style="color: #166534; font-size: 12px; margin: 5px 0 0 0;">Cancel for free up to 24 hours before check-in</p>
+      </div>
+      ` : ''}
 
       <!-- Help Section -->
       <div style="border-top: 1px solid #e2e8f0; margin-top: 30px; padding-top: 20px; text-align: center;">
@@ -275,6 +287,126 @@ export async function sendAdminNotificationEmail(data: BookingEmailData) {
     return { success: true, id: result?.id };
   } catch (error) {
     console.error('Admin email send error:', error);
+    return { success: false, error };
+  }
+}
+
+interface CancellationEmailData {
+  bookingReference: string;
+  guestName: string;
+  guestEmail: string;
+  hotelName: string;
+  hotelLocation: string;
+  checkIn: Date;
+  checkOut: Date;
+  refundAmount?: number;
+  currency: string;
+}
+
+export async function sendCancellationEmail(data: CancellationEmailData) {
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Booking Cancellation</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f5;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, #991b1b 0%, #450a0a 100%); padding: 40px 30px; border-radius: 16px 16px 0 0; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;">Best Hotel Rates</h1>
+      <p style="color: #fca5a5; margin: 10px 0 0 0; font-size: 14px;">Booking Cancelled</p>
+    </div>
+
+    <!-- Main Content -->
+    <div style="background: #ffffff; padding: 40px 30px; border-radius: 0 0 16px 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+      <!-- Cancelled Icon -->
+      <div style="text-align: center; margin-bottom: 30px;">
+        <div style="width: 80px; height: 80px; background: #fef2f2; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </div>
+      </div>
+
+      <h2 style="color: #0f172a; font-size: 24px; margin: 0 0 10px 0; text-align: center;">Booking Cancelled</h2>
+      <p style="color: #64748b; font-size: 16px; margin: 0 0 30px 0; text-align: center;">Hi ${data.guestName}, your booking has been cancelled.</p>
+
+      <!-- Booking Reference -->
+      <div style="background: #fef2f2; border: 2px dashed #fecaca; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 30px;">
+        <p style="color: #64748b; font-size: 12px; margin: 0 0 5px 0; text-transform: uppercase; letter-spacing: 1px;">Cancelled Booking</p>
+        <p style="color: #dc2626; font-size: 28px; font-weight: 700; margin: 0; font-family: monospace; text-decoration: line-through;">${data.bookingReference}</p>
+      </div>
+
+      <!-- Hotel Details -->
+      <div style="background: #f8fafc; border-radius: 12px; padding: 25px; margin-bottom: 25px;">
+        <h3 style="color: #0f172a; font-size: 18px; margin: 0 0 5px 0;">${data.hotelName}</h3>
+        <p style="color: #64748b; font-size: 14px; margin: 0 0 15px 0;">📍 ${data.hotelLocation}</p>
+        <p style="color: #64748b; font-size: 14px; margin: 0;">
+          ${formatDate(data.checkIn)} → ${formatDate(data.checkOut)}
+        </p>
+      </div>
+
+      ${data.refundAmount && data.refundAmount > 0 ? `
+      <!-- Refund Info -->
+      <div style="background: #dcfce7; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 25px;">
+        <p style="color: #166534; font-size: 14px; margin: 0 0 5px 0; font-weight: 600;">💸 Refund Processing</p>
+        <p style="color: #166534; font-size: 24px; font-weight: 700; margin: 0;">${formatCurrency(data.refundAmount, data.currency)}</p>
+        <p style="color: #166534; font-size: 12px; margin: 10px 0 0 0;">Your refund will be processed within 5-10 business days</p>
+      </div>
+      ` : `
+      <!-- No Refund -->
+      <div style="background: #fef3c7; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 25px;">
+        <p style="color: #92400e; font-size: 14px; margin: 0; font-weight: 500;">This was a non-refundable booking. No refund will be issued.</p>
+      </div>
+      `}
+
+      <!-- CTA Button -->
+      <div style="text-align: center; margin-top: 30px;">
+        <a href="https://best-hotel-rates.vercel.app" style="display: inline-block; background: #3b82f6; color: #ffffff; text-decoration: none; padding: 14px 30px; border-radius: 8px; font-weight: 600; font-size: 16px;">Book Another Hotel</a>
+      </div>
+
+      <!-- Help Section -->
+      <div style="border-top: 1px solid #e2e8f0; margin-top: 30px; padding-top: 20px; text-align: center;">
+        <p style="color: #64748b; font-size: 14px; margin: 0;">Questions? Contact us at <a href="mailto:support@besthotelrates.co.uk" style="color: #3b82f6;">support@besthotelrates.co.uk</a></p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align: center; padding: 20px;">
+      <p style="color: #64748b; font-size: 12px; margin: 0;">© 2025 Best Hotel Rates. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  try {
+    const resend = getResend();
+    if (!resend) {
+      console.log('⚠️ Resend API key not configured, skipping cancellation email');
+      return { success: false, error: 'Email service not configured' };
+    }
+
+    const { data: result, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: data.guestEmail,
+      subject: `Booking Cancelled - ${data.bookingReference}`,
+      html,
+    });
+
+    if (error) {
+      console.error('Failed to send cancellation email:', error);
+      return { success: false, error };
+    }
+
+    console.log('✅ Cancellation email sent:', result?.id);
+    return { success: true, id: result?.id };
+  } catch (error) {
+    console.error('Cancellation email send error:', error);
     return { success: false, error };
   }
 }
