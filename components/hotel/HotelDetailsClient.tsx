@@ -16,7 +16,8 @@ type Props = {
   hotel: SupplierHotelDetails;
   initialCheckIn?: string;
   initialCheckOut?: string;
-  initialGuests?: number;
+  initialAdults?: number;
+  initialChildren?: number;
   initialRooms?: number;
 };
 
@@ -24,7 +25,8 @@ export const HotelDetailsClient: React.FC<Props> = ({
   hotel, 
   initialCheckIn, 
   initialCheckOut, 
-  initialGuests, 
+  initialAdults, 
+  initialChildren,
   initialRooms 
 }) => {
   const router = useRouter();
@@ -68,8 +70,8 @@ export const HotelDetailsClient: React.FC<Props> = ({
     return addDays(defaultCheckIn(), 2);
   });
   const [rooms, setRooms] = useState(initialRooms ?? 1);
-  const [adults, setAdults] = useState(initialGuests ?? 2);
-  const [children, setChildren] = useState(0);
+  const [adults, setAdults] = useState(initialAdults ?? 2);
+  const [children, setChildren] = useState(initialChildren ?? 0);
   const [addOnSelections, setAddOnSelections] = useState<Record<string, number>>({});
 
   const selectedRoom = useMemo(

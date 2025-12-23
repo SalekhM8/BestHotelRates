@@ -20,7 +20,8 @@ export default async function HotelDetailsPage({ params, searchParams }: Props) 
   // Extract search context from URL params
   const initialCheckIn = resolvedSearchParams.checkIn;
   const initialCheckOut = resolvedSearchParams.checkOut;
-  const initialGuests = resolvedSearchParams.guests ? parseInt(resolvedSearchParams.guests, 10) : undefined;
+  const initialAdults = resolvedSearchParams.adults ? parseInt(resolvedSearchParams.adults, 10) : undefined;
+  const initialChildren = resolvedSearchParams.children ? parseInt(resolvedSearchParams.children, 10) : undefined;
   const initialRooms = resolvedSearchParams.rooms ? parseInt(resolvedSearchParams.rooms, 10) : undefined;
 
   return (
@@ -37,7 +38,8 @@ export default async function HotelDetailsPage({ params, searchParams }: Props) 
           hotel={hotel}
           initialCheckIn={initialCheckIn}
           initialCheckOut={initialCheckOut}
-          initialGuests={initialGuests}
+          initialAdults={initialAdults}
+          initialChildren={initialChildren}
           initialRooms={initialRooms}
         />
       </div>

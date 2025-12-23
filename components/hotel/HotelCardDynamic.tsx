@@ -25,7 +25,8 @@ interface HotelCardDynamicProps {
   // Search context to persist across navigation
   checkIn?: string;
   checkOut?: string;
-  guests?: number;
+  adults?: number;
+  children?: number;
   rooms?: number;
 }
 
@@ -48,7 +49,8 @@ export const HotelCardDynamic: React.FC<HotelCardDynamicProps> = ({
   layout = 'vertical',
   checkIn,
   checkOut,
-  guests,
+  adults,
+  children,
   rooms,
 }) => {
   const [favorite, setFavorite] = useState(isFavorite);
@@ -150,7 +152,8 @@ export const HotelCardDynamic: React.FC<HotelCardDynamicProps> = ({
     const params = new URLSearchParams();
     if (checkIn) params.set('checkIn', checkIn);
     if (checkOut) params.set('checkOut', checkOut);
-    if (guests) params.set('guests', guests.toString());
+    if (adults) params.set('adults', adults.toString());
+    if (children) params.set('children', children.toString());
     if (rooms) params.set('rooms', rooms.toString());
     
     const queryString = params.toString();

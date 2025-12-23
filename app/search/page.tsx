@@ -50,7 +50,9 @@ function SearchPageInner() {
   const destination = searchParams.get('destination') ?? '';
   const checkIn = searchParams.get('checkIn') ?? '';
   const checkOut = searchParams.get('checkOut') ?? '';
-  const guests = parseInt(searchParams.get('guests') ?? '2', 10);
+  // Support both 'adults' (from search bar) and 'guests' (legacy) 
+  const adults = parseInt(searchParams.get('adults') ?? searchParams.get('guests') ?? '2', 10);
+  const children = parseInt(searchParams.get('children') ?? '0', 10);
   const rooms = parseInt(searchParams.get('rooms') ?? '1', 10);
 
   const [hotels, setHotels] = useState<SupplierHotelSummary[]>([]);
@@ -357,7 +359,8 @@ function SearchPageInner() {
                       layout={viewMode === 'list' ? 'horizontal' : 'vertical'}
                       checkIn={checkIn}
                       checkOut={checkOut}
-                      guests={guests}
+                      adults={adults}
+                      children={children}
                       rooms={rooms}
                     />
                   ))}
