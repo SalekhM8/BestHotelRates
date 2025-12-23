@@ -54,6 +54,20 @@ export const AdvancedSearchBar: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Save search state to sessionStorage whenever it changes
+  useEffect(() => {
+    const searchState = {
+      checkIn: checkIn?.toISOString() || null,
+      checkOut: checkOut?.toISOString() || null,
+      adults,
+      children,
+      rooms,
+    };
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('searchState', JSON.stringify(searchState));
+    }
+  }, [checkIn, checkOut, adults, children, rooms]);
+
   const updateFilteredCities = useDebouncedCallback((value: string) => {
     if (value) {
       const filtered = cities.filter((city) =>

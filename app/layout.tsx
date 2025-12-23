@@ -24,7 +24,7 @@ export default function RootLayout({
           {/* Video Background - Now Active! */}
           <VideoBackground />
           <Header />
-          {children}
+        {children}
           <Footer />
           <BottomNav />
         </SessionProvider>

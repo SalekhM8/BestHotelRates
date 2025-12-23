@@ -149,12 +149,36 @@ export const HotelCardDynamic: React.FC<HotelCardDynamicProps> = ({
 
   const handleCardClick = () => {
     // Build URL with search context preserved
+    // First try props, then fallback to sessionStorage
+    let searchCheckIn = checkIn;
+    let searchCheckOut = checkOut;
+    let searchAdults = adults;
+    let searchChildren = children;
+    let searchRooms = rooms;
+    
+    // If no props provided, try to get from sessionStorage (set by AdvancedSearchBar)
+    if (!searchCheckIn && !searchAdults && typeof window !== 'undefined') {
+      try {
+        const stored = sessionStorage.getItem('searchState');
+        if (stored) {
+          const state = JSON.parse(stored);
+          searchCheckIn = state.checkIn || undefined;
+          searchCheckOut = state.checkOut || undefined;
+          searchAdults = state.adults || undefined;
+          searchChildren = state.children ?? undefined;
+          searchRooms = state.rooms || undefined;
+        }
+      } catch (e) {
+        console.error('Failed to read search state:', e);
+      }
+    }
+    
     const params = new URLSearchParams();
-    if (checkIn) params.set('checkIn', checkIn);
-    if (checkOut) params.set('checkOut', checkOut);
-    if (adults) params.set('adults', adults.toString());
-    if (children) params.set('children', children.toString());
-    if (rooms) params.set('rooms', rooms.toString());
+    if (searchCheckIn) params.set('checkIn', searchCheckIn);
+    if (searchCheckOut) params.set('checkOut', searchCheckOut);
+    if (searchAdults) params.set('adults', searchAdults.toString());
+    if (searchChildren !== undefined) params.set('children', searchChildren.toString());
+    if (searchRooms) params.set('rooms', searchRooms.toString());
     
     const queryString = params.toString();
     const url = `/hotels/${slug ?? id}${queryString ? `?${queryString}` : ''}`;
