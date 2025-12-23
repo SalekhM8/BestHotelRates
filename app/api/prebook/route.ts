@@ -174,8 +174,18 @@ export async function POST(request: NextRequest) {
 
     const supplier = supplierCode?.toUpperCase() || 'LOCAL';
 
+    // Check if supplier credentials are configured
+    const isRatehawkConfigured = !!(process.env.RATEHAWK_API_KEY && process.env.RATEHAWK_API_SECRET);
+    const isHotelbedsConfigured = !!(process.env.HOTELBEDS_API_KEY && process.env.HOTELBEDS_API_SECRET);
+
     switch (supplier) {
       case 'RATEHAWK':
+        if (!isRatehawkConfigured) {
+          // No credentials - treat as test/mock data
+          console.log('RateHawk not configured - skipping validation');
+          result = prebookLocal(ratePlanId, totalAmount, currency);
+          break;
+        }
         if (!bookHash) {
           return NextResponse.json(
             { success: false, error: 'Missing bookHash for RateHawk' },
@@ -186,6 +196,12 @@ export async function POST(request: NextRequest) {
         break;
 
       case 'HOTELBEDS':
+        if (!isHotelbedsConfigured) {
+          // No credentials - treat as test/mock data
+          console.log('HotelBeds not configured - skipping validation');
+          result = prebookLocal(ratePlanId, totalAmount, currency);
+          break;
+        }
         if (!rateKey) {
           return NextResponse.json(
             { success: false, error: 'Missing rateKey for HotelBeds' },
