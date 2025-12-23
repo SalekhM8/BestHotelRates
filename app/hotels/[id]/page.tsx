@@ -3,6 +3,9 @@ import { getHotelDetails } from '@/lib/hotels-data';
 import { HotelDetailsClient } from '@/components/hotel/HotelDetailsClient';
 import { BackToSearchButton } from '@/components/navigation/BackToSearchButton';
 
+// Force dynamic to ensure searchParams are always fresh
+export const dynamic = 'force-dynamic';
+
 type Props = {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ [key: string]: string | undefined }>;
@@ -23,6 +26,9 @@ export default async function HotelDetailsPage({ params, searchParams }: Props) 
   const initialAdults = resolvedSearchParams.adults ? parseInt(resolvedSearchParams.adults, 10) : undefined;
   const initialChildren = resolvedSearchParams.children ? parseInt(resolvedSearchParams.children, 10) : undefined;
   const initialRooms = resolvedSearchParams.rooms ? parseInt(resolvedSearchParams.rooms, 10) : undefined;
+  
+  // Debug log to trace the values
+  console.log('Hotel page params:', { initialAdults, initialChildren, initialRooms, raw: resolvedSearchParams });
 
   return (
     <main className="relative min-h-screen pb-32 md:pb-24 pt-24">
