@@ -23,18 +23,7 @@ interface FilterPanelProps {
 
 const STAR_OPTIONS = [5, 4, 3, 2, 1];
 
-const AMENITY_OPTIONS = [
-  { id: 'wifi', label: 'Free WiFi', icon: '📶' },
-  { id: 'pool', label: 'Pool', icon: '🏊' },
-  { id: 'gym', label: 'Gym', icon: '💪' },
-  { id: 'spa', label: 'Spa', icon: '💆' },
-  { id: 'parking', label: 'Parking', icon: '🅿️' },
-  { id: 'restaurant', label: 'Restaurant', icon: '🍽️' },
-  { id: 'bar', label: 'Bar', icon: '🍸' },
-  { id: 'aircon', label: 'Air Conditioning', icon: '❄️' },
-  { id: 'pet', label: 'Pet Friendly', icon: '🐕' },
-  { id: 'beach', label: 'Beach Access', icon: '🏖️' },
-];
+// Amenities removed - HotelBeds API doesn't provide amenity data in search results
 
 const BOARD_OPTIONS = [
   { id: 'breakfast', label: 'Breakfast Included', icon: '🥐' },
@@ -57,12 +46,7 @@ export function FilterPanel({
     onChange({ ...filters, starRating: newStars });
   };
 
-  const toggleAmenity = (amenityId: string) => {
-    const newAmenities = filters.amenities.includes(amenityId)
-      ? filters.amenities.filter((a) => a !== amenityId)
-      : [...filters.amenities, amenityId];
-    onChange({ ...filters, amenities: newAmenities });
-  };
+  // toggleAmenity removed - HotelBeds doesn't support amenity filtering
 
   const toggleBoardType = (boardId: string) => {
     const newBoardTypes = filters.boardTypes.includes(boardId)
@@ -203,28 +187,7 @@ export function FilterPanel({
         </div>
       </div>
 
-      {/* Amenities */}
-      <div className="mb-4">
-        <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wide">
-          Amenities
-        </h4>
-        <div className="grid grid-cols-2 gap-2">
-          {AMENITY_OPTIONS.map((amenity) => (
-            <button
-              key={amenity.id}
-              onClick={() => toggleAmenity(amenity.id)}
-              className={`flex items-center gap-2 px-2 py-2 rounded-lg border text-xs transition-all ${
-                filters.amenities.includes(amenity.id)
-                  ? 'bg-blue-500/30 border-blue-400 text-white'
-                  : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10 hover:border-white/30'
-              }`}
-            >
-              <span>{amenity.icon}</span>
-              <span className="truncate">{amenity.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Amenities removed - HotelBeds API doesn't provide amenity data in search results */}
     </GlassCard>
   );
 }
