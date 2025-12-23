@@ -128,6 +128,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { supplierCode, ratePlanId, bookHash, rateKey, totalAmount, currency, hotelId } = body;
 
+    // DEBUG: Log what we received
+    console.log('PREBOOK REQUEST:', JSON.stringify({ supplierCode, hotelId, ratePlanId, rateKey: rateKey?.substring(0, 50) }));
+
     if (!ratePlanId && !bookHash && !rateKey) {
       return NextResponse.json(
         { success: false, error: 'Missing rate identifier' },
@@ -135,19 +138,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let result: {
-      success: boolean;
-      priceChanged: boolean;
-      newPrice?: number;
-      originalPrice?: number;
-      currency?: string;
-      error?: string;
-    };
-
-    // Check if this is test data - our test hotel IDs are 100000-599999
-    // London: 100xxx, Paris: 200xxx, Dubai: 300xxx, New York: 400xxx, Barcelona: 500xxx
-    const hotelIdNum = parseInt(hotelId || ratePlanId?.split('-')?.[0] || '0', 10);
-    const isTestData = hotelIdNum >= 100000 && hotelIdNum < 600000;
+    // Check if this is test data - multiple detection methods
+    // Method 1: Check hotelId directly
+    // Method 2: Check if rateKey is a short numeric string (test data uses hotel codes as rate IDs)
+    // Method 3: Check ratePlanId prefix
+    const hotelIdNum = parseInt(hotelId || '0', 10);
+    const rateKeyNum = parseInt(rateKey || '0', 10);
+    const ratePlanPrefix = parseInt(ratePlanId?.split('-')?.[0] || '0', 10);
+    
+    const isTestData = 
+      (hotelIdNum >= 100000 && hotelIdNum < 600000) ||
+      (rateKeyNum >= 100000 && rateKeyNum < 600000) ||
+      (ratePlanPrefix >= 100000 && ratePlanPrefix < 600000);
+    
+    console.log('PREBOOK CHECK:', { hotelIdNum, rateKeyNum, ratePlanPrefix, isTestData });
     
     if (isTestData) {
       console.log('Test data detected - skipping supplier prebook validation');
@@ -158,6 +162,15 @@ export async function POST(request: NextRequest) {
         currency: currency || 'GBP',
       });
     }
+
+    let result: {
+      success: boolean;
+      priceChanged: boolean;
+      newPrice?: number;
+      originalPrice?: number;
+      currency?: string;
+      error?: string;
+    };
 
     const supplier = supplierCode?.toUpperCase() || 'LOCAL';
 
