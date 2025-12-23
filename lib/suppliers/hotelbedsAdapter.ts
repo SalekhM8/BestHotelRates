@@ -323,17 +323,22 @@ function getFriendlyRateName(rateClass: string | undefined, boardName: string | 
   return isRefundable ? 'Flexible Rate' : 'Non-Refundable Rate';
 }
 
-function toRatePlan(rate: any): SupplierRatePlan {
+function toRatePlan(rate: any, nights: number = 1): SupplierRatePlan {
   const isRefundable = Array.isArray(rate.cancellationPolicies) && rate.cancellationPolicies.length > 0;
   const boardType = mapBoard(rate.boardCode, rate.boardName);
   const paymentType = mapPayment(rate.paymentType);
   const rateType = mapRateType(rate.rateClass || rate.rateType, isRefundable);
-  const baseRate = Number(rate.net ?? rate.sellingRate ?? 0);
+  
+  // HotelBeds returns TOTAL prices, divide by nights for per-night rate
+  const totalBaseRate = Number(rate.net ?? rate.sellingRate ?? 0);
+  const baseRate = nights > 0 ? Math.round(totalBaseRate / nights) : totalBaseRate;
+  
   const taxes = Array.isArray(rate.taxes?.taxes)
     ? rate.taxes.taxes.reduce((sum: number, tax: any) => sum + Number(tax.amount ?? 0), 0)
     : 0;
   const fees = 0;
-  const totalAmount = Number(rate.sellingRate ?? rate.net ?? 0) + taxes + fees;
+  const totalForStay = Number(rate.sellingRate ?? rate.net ?? 0) + taxes + fees;
+  const totalAmount = nights > 0 ? Math.round(totalForStay / nights) : totalForStay;
   const refundableUntil = isRefundable
     ? rate.cancellationPolicies?.[0]?.from
     : null;
@@ -374,15 +379,19 @@ function hoursUntil(dateString: string) {
   return Math.max(0, Math.round((target - now) / (1000 * 60 * 60)));
 }
 
-function toHotelSummary(hotel: any): SupplierHotelSummary {
-  // hotel.minRate is the price (number), hotel.rooms[0].rates[0] is the rate details
-  const minPrice = Number(hotel.minRate) || 0;
+function toHotelSummary(hotel: any, nights: number = 1): SupplierHotelSummary {
+  // hotel.minRate is the TOTAL price for the entire stay, NOT per night
+  // We need to divide by nights to get the per-night rate
+  const totalPrice = Number(hotel.minRate) || 0;
   const currency = hotel.currency ?? HB_CURRENCY;
   const firstRate = hotel?.rooms?.[0]?.rates?.[0];
-  const ratePlan = firstRate ? toRatePlan(firstRate) : null;
+  const ratePlan = firstRate ? toRatePlan(firstRate, nights) : null;
   
-  // Use hotel.minRate for price, override ratePlan price if available
-  const startingRate = minPrice > 0 ? minPrice : (ratePlan?.baseRate ?? null);
+  // Calculate per-night rate by dividing total by number of nights
+  const perNightRate = nights > 0 && totalPrice > 0 
+    ? Math.round(totalPrice / nights) 
+    : (ratePlan?.baseRate ?? null);
+  const startingRate = perNightRate;
   
   return {
     id: String(hotel.code),
@@ -401,14 +410,14 @@ function toHotelSummary(hotel: any): SupplierHotelSummary {
     tags: undefined,
     categories: [],
     supplierCode: 'HOTELBEDS',
-    minRatePlan: ratePlan
+      minRatePlan: ratePlan
       ? {
           id: ratePlan.id,
           name: ratePlan.name,
           boardType: ratePlan.boardType,
           rateType: ratePlan.rateType,
           paymentType: ratePlan.paymentType,
-          baseRate: startingRate || ratePlan.baseRate,
+          baseRate: perNightRate || ratePlan.baseRate,
           currency,
           isRefundable: ratePlan.isRefundable,
           availableRooms: ratePlan.availableRooms,
@@ -505,11 +514,16 @@ export const hotelbedsAdapter: SupplierAdapter = {
       language: HB_LANGUAGE,
     };
 
+    // Calculate number of nights for per-night rate calculation
+    const checkInDate = new Date(body.stay.checkIn);
+    const checkOutDate = new Date(body.stay.checkOut);
+    const nights = Math.max(1, Math.round((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)));
+
     try {
       const cacheKey = `hb-search:${destinationCode}:${body.stay.checkIn}:${body.stay.checkOut}:${adults}:${children}:${rooms}:${limit}`;
       const data = await withCache(cacheKey, 1000 * 60, () => availabilityRequest(body));
       const hotels = data?.hotels?.hotels ?? [];
-      console.log(`HotelBeds returned ${hotels.length} hotels for ${destinationCode}`);
+      console.log(`HotelBeds returned ${hotels.length} hotels for ${destinationCode} (${nights} nights)`);
       
       // If HotelBeds returns 0 results, return empty - NO MOCKS
       if (hotels.length === 0) {
@@ -517,7 +531,8 @@ export const hotelbedsAdapter: SupplierAdapter = {
         return [];
       }
       
-      return hotels.map(toHotelSummary);
+      // Pass nights to calculate per-night rates
+      return hotels.map((hotel: any) => toHotelSummary(hotel, nights));
     } catch (err: any) {
       console.error('HotelBeds search error:', err.message || err);
       // NO MOCKS - throw the error so it's visible
