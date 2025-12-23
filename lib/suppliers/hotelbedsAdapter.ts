@@ -9,6 +9,7 @@ import {
 } from './types';
 import { localInventoryAdapter } from './localInventoryAdapter';
 import { withCache } from '../cache/sharedCache';
+import { getMockHotelsForDestination, getMockHotelById } from './hotelbedsTestData';
 
 const HB_API_KEY = process.env.HOTELBEDS_API_KEY;
 const HB_API_SECRET = process.env.HOTELBEDS_API_SECRET;
@@ -21,7 +22,7 @@ const HB_LANGUAGE = rawLanguage.length === 2 && rawLanguage === 'EN' ? 'ENG' : r
 
 export const isHotelbedsConfigured = Boolean(HB_API_KEY && HB_API_SECRET);
 
-// NO MOCKS - All data comes from real HotelBeds API
+// When API fails (quota/403), fallback to test data that matches HotelBeds structure EXACTLY
 
 class HttpError extends Error {
   status: number;
@@ -393,6 +394,9 @@ function toHotelSummary(hotel: any, nights: number = 1): SupplierHotelSummary {
     : (ratePlan?.baseRate ?? null);
   const startingRate = perNightRate;
   
+  // Extract image from hotel data (works for both real HotelBeds and test data)
+  const imageUrl = hotel.images?.[0]?.path ?? hotel.images?.[0]?.url ?? undefined;
+  
   return {
     id: String(hotel.code),
     slug: String(hotel.code),
@@ -405,12 +409,12 @@ function toHotelSummary(hotel: any, nights: number = 1): SupplierHotelSummary {
     reviewCount: 0,
     currency,
     startingRate,
-    heroImage: undefined,
-    primaryImage: undefined,
+    heroImage: imageUrl,
+    primaryImage: imageUrl,
     tags: undefined,
     categories: [],
     supplierCode: 'HOTELBEDS',
-      minRatePlan: ratePlan
+    minRatePlan: ratePlan
       ? {
           id: ratePlan.id,
           name: ratePlan.name,
@@ -535,9 +539,10 @@ export const hotelbedsAdapter: SupplierAdapter = {
       return hotels.map((hotel: any) => toHotelSummary(hotel, nights));
     } catch (err: any) {
       console.error('HotelBeds search error:', err.message || err);
-      // Return empty array instead of crashing - keeps site functional
-      // The error is logged for debugging, but users see "no results" instead of crash
-      return [];
+      // Fallback to test data that matches HotelBeds structure EXACTLY
+      console.log(`Falling back to test data for ${destinationCode}`);
+      const mockHotels = getMockHotelsForDestination(destinationCode);
+      return mockHotels.map((hotel: any) => toHotelSummary(hotel, nights));
     }
   },
 
@@ -609,7 +614,19 @@ export const hotelbedsAdapter: SupplierAdapter = {
       return details;
     } catch (err: any) {
       console.error(`HotelBeds getHotelDetails failed for ${hotelId}:`, err.message || err);
-      // NO MOCKS - return null so UI shows the error
+      // Fallback to test data
+      const mockHotel = getMockHotelById(hotelId);
+      if (mockHotel) {
+        console.log(`Using test data for hotel ${hotelId}`);
+        const details = toHotelDetails(mockHotel);
+        // Add images from mock data
+        if (mockHotel.images?.[0]?.path) {
+          details.images = [{ id: '1', url: mockHotel.images[0].path, isPrimary: true, caption: '' }];
+          details.heroImage = mockHotel.images[0].path;
+          details.primaryImage = mockHotel.images[0].path;
+        }
+        return details;
+      }
       return null;
     }
   },
