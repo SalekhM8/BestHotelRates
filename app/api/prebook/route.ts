@@ -144,9 +144,10 @@ export async function POST(request: NextRequest) {
       error?: string;
     };
 
-    // Check if this is test data - our test hotel IDs are 100000-199999
+    // Check if this is test data - our test hotel IDs are 100000-599999
+    // London: 100xxx, Paris: 200xxx, Dubai: 300xxx, New York: 400xxx, Barcelona: 500xxx
     const hotelIdNum = parseInt(hotelId || ratePlanId?.split('-')?.[0] || '0', 10);
-    const isTestData = hotelIdNum >= 100000 && hotelIdNum < 200000;
+    const isTestData = hotelIdNum >= 100000 && hotelIdNum < 600000;
     
     if (isTestData) {
       console.log('Test data detected - skipping supplier prebook validation');
