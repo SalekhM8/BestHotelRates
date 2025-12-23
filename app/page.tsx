@@ -47,26 +47,21 @@ function HotelCardSkeleton() {
 
 export default async function HomePage() {
   // Try to fetch hotels, but handle API failures gracefully
+  // REDUCED: Only fetch ONE city on homepage to conserve API quota
   let hotelsLondon: Awaited<ReturnType<typeof getFeaturedHotelsByCity>> = [];
-  let hotelsDubai: Awaited<ReturnType<typeof getFeaturedHotelsByCity>> = [];
-  let hotelsParis: Awaited<ReturnType<typeof getFeaturedHotelsByCity>> = [];
   let apiError: string | null = null;
 
   try {
-    // Fetch London first - if quota is limited, at least show something
+    // Only fetch London - reduces API calls from 3 to 1
     hotelsLondon = await getFeaturedHotelsByCity('London');
-    
-    // Only fetch other cities if London succeeded
-    if (hotelsLondon.length > 0) {
-      [hotelsDubai, hotelsParis] = await Promise.all([
-        getFeaturedHotelsByCity('Dubai'),
-        getFeaturedHotelsByCity('Paris'),
-      ]);
-    }
   } catch (err: any) {
     console.error('Failed to fetch hotels:', err.message);
-    apiError = err.message || 'Failed to fetch hotels from HotelBeds API';
+    apiError = 'Hotel listings temporarily unavailable. Please try searching directly.';
   }
+  
+  // Empty arrays for other cities - not fetching to save API quota
+  const hotelsDubai: typeof hotelsLondon = [];
+  const hotelsParis: typeof hotelsLondon = [];
 
   return (
     <main className="relative min-h-screen pb-32 md:pb-24">

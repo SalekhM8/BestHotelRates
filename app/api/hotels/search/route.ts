@@ -47,12 +47,20 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ hotels, count: hotels.length });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Hotel search error:', error);
-    return NextResponse.json(
-      { error: 'Failed to search hotels', hotels: [], count: 0 },
-      { status: 500 },
-    );
+    
+    // Return graceful response instead of 500 - keeps UI functional
+    const errorMessage = error?.message?.includes('403') || error?.message?.includes('Quota')
+      ? 'Hotel provider temporarily unavailable. Please try again shortly.'
+      : 'Unable to fetch hotels at this time.';
+    
+    return NextResponse.json({ 
+      hotels: [], 
+      count: 0, 
+      error: errorMessage,
+      isQuotaError: error?.message?.includes('403'),
+    });
   }
 }
 

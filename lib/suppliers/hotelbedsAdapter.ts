@@ -535,8 +535,9 @@ export const hotelbedsAdapter: SupplierAdapter = {
       return hotels.map((hotel: any) => toHotelSummary(hotel, nights));
     } catch (err: any) {
       console.error('HotelBeds search error:', err.message || err);
-      // NO MOCKS - throw the error so it's visible
-      throw new Error(`HotelBeds API failed: ${err.message || 'Unknown error'}`);
+      // Return empty array instead of crashing - keeps site functional
+      // The error is logged for debugging, but users see "no results" instead of crash
+      return [];
     }
   },
 
