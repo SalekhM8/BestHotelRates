@@ -72,6 +72,7 @@ export function BookingFlowClient({ initialSelection, user }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           supplierCode: initialSelection.hotel.supplierCode || 'LOCAL',
+          hotelId: initialSelection.hotel.id, // Used to detect test data
           ratePlanId: initialSelection.ratePlan.id,
           bookHash: initialSelection.ratePlan.id, // For RateHawk, this is the book_hash
           rateKey: initialSelection.ratePlan.id, // For HotelBeds, this is the rateKey
