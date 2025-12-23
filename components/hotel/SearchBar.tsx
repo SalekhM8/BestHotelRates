@@ -115,32 +115,6 @@ export const SearchBar: React.FC = () => {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-2 md:gap-3 mt-4 md:mt-6 justify-center overflow-x-auto pb-2">
-          <button className="glass-card-small px-4 py-2 md:px-5 md:py-2.5 text-white font-semibold text-xs md:text-sm flex items-center gap-2 hover:bg-white/10 shrink-0">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="md:w-4 md:h-4">
-              <line x1="4" y1="21" x2="4" y2="14"></line>
-              <line x1="4" y1="10" x2="4" y2="3"></line>
-              <line x1="12" y1="21" x2="12" y2="12"></line>
-              <line x1="12" y1="8" x2="12" y2="3"></line>
-              <line x1="20" y1="21" x2="20" y2="16"></line>
-              <line x1="20" y1="12" x2="20" y2="3"></line>
-              <line x1="1" y1="14" x2="7" y2="14"></line>
-              <line x1="9" y1="8" x2="15" y2="8"></line>
-              <line x1="17" y1="16" x2="23" y2="16"></line>
-            </svg>
-            Filters
-          </button>
-          <button className="glass-card-small px-4 py-2 md:px-5 md:py-2.5 text-white font-semibold text-xs md:text-sm hover:bg-white/10 shrink-0">
-            Price Range
-          </button>
-          <button className="glass-card-small px-4 py-2 md:px-5 md:py-2.5 text-white font-semibold text-xs md:text-sm hover:bg-white/10 shrink-0">
-            Star Rating
-          </button>
-          <button className="glass-card-small px-4 py-2 md:px-5 md:py-2.5 text-white font-semibold text-xs md:text-sm hover:bg-white/10 shrink-0">
-            Amenities
-          </button>
-        </div>
       </div>
     </div>
   );
