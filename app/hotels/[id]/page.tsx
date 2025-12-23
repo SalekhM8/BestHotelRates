@@ -5,15 +5,23 @@ import { BackToSearchButton } from '@/components/navigation/BackToSearchButton';
 
 type Props = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | undefined }>;
 };
 
-export default async function HotelDetailsPage({ params }: Props) {
+export default async function HotelDetailsPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const resolvedSearchParams = await searchParams;
   const hotel = await getHotelDetails(id);
 
   if (!hotel) {
     notFound();
   }
+
+  // Extract search context from URL params
+  const initialCheckIn = resolvedSearchParams.checkIn;
+  const initialCheckOut = resolvedSearchParams.checkOut;
+  const initialGuests = resolvedSearchParams.guests ? parseInt(resolvedSearchParams.guests, 10) : undefined;
+  const initialRooms = resolvedSearchParams.rooms ? parseInt(resolvedSearchParams.rooms, 10) : undefined;
 
   return (
     <main className="relative min-h-screen pb-32 md:pb-24 pt-24">
@@ -25,7 +33,13 @@ export default async function HotelDetailsPage({ params }: Props) {
           </div>
         </div>
 
-        <HotelDetailsClient hotel={hotel} />
+        <HotelDetailsClient 
+          hotel={hotel}
+          initialCheckIn={initialCheckIn}
+          initialCheckOut={initialCheckOut}
+          initialGuests={initialGuests}
+          initialRooms={initialRooms}
+        />
       </div>
     </main>
   );

@@ -50,6 +50,8 @@ function SearchPageInner() {
   const destination = searchParams.get('destination') ?? '';
   const checkIn = searchParams.get('checkIn') ?? '';
   const checkOut = searchParams.get('checkOut') ?? '';
+  const guests = parseInt(searchParams.get('guests') ?? '2', 10);
+  const rooms = parseInt(searchParams.get('rooms') ?? '1', 10);
 
   const [hotels, setHotels] = useState<SupplierHotelSummary[]>([]);
   const [filters, setFilters] = useState<SearchFilters>(DEFAULT_FILTERS);
@@ -353,6 +355,10 @@ function SearchPageInner() {
                       key={hotel.id}
                       {...toCardProps(hotel)}
                       layout={viewMode === 'list' ? 'horizontal' : 'vertical'}
+                      checkIn={checkIn}
+                      checkOut={checkOut}
+                      guests={guests}
+                      rooms={rooms}
                     />
                   ))}
                 </div>

@@ -14,9 +14,19 @@ import { useRecentlyViewed } from '@/lib/hooks/useRecentlyViewed';
 
 type Props = {
   hotel: SupplierHotelDetails;
+  initialCheckIn?: string;
+  initialCheckOut?: string;
+  initialGuests?: number;
+  initialRooms?: number;
 };
 
-export const HotelDetailsClient: React.FC<Props> = ({ hotel }) => {
+export const HotelDetailsClient: React.FC<Props> = ({ 
+  hotel, 
+  initialCheckIn, 
+  initialCheckOut, 
+  initialGuests, 
+  initialRooms 
+}) => {
   const router = useRouter();
   const { addRecentlyViewed } = useRecentlyViewed();
   
@@ -41,10 +51,24 @@ export const HotelDetailsClient: React.FC<Props> = ({ hotel }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [selectedRatePlanId, setSelectedRatePlanId] = useState<string | null>(null);
-  const [checkIn, setCheckIn] = useState<Date>(defaultCheckIn());
-  const [checkOut, setCheckOut] = useState<Date>(addDays(defaultCheckIn(), 2));
-  const [rooms, setRooms] = useState(1);
-  const [adults, setAdults] = useState(2);
+  
+  // Use initial values from URL params if provided, otherwise use defaults
+  const [checkIn, setCheckIn] = useState<Date>(() => {
+    if (initialCheckIn) {
+      const parsed = new Date(initialCheckIn);
+      return isNaN(parsed.getTime()) ? defaultCheckIn() : parsed;
+    }
+    return defaultCheckIn();
+  });
+  const [checkOut, setCheckOut] = useState<Date>(() => {
+    if (initialCheckOut) {
+      const parsed = new Date(initialCheckOut);
+      return isNaN(parsed.getTime()) ? addDays(defaultCheckIn(), 2) : parsed;
+    }
+    return addDays(defaultCheckIn(), 2);
+  });
+  const [rooms, setRooms] = useState(initialRooms ?? 1);
+  const [adults, setAdults] = useState(initialGuests ?? 2);
   const [children, setChildren] = useState(0);
   const [addOnSelections, setAddOnSelections] = useState<Record<string, number>>({});
 
@@ -393,11 +417,11 @@ export const HotelDetailsClient: React.FC<Props> = ({ hotel }) => {
                 </div>
 
                 <div className="grid gap-4">
-                  {room.ratePlans.map((plan) => {
+                  {room.ratePlans.map((plan, planIndex) => {
                     const isActive = selectedRatePlanId === plan.id;
                     return (
                       <div
-                        key={plan.id}
+                        key={`${room.id}-${plan.id}-${planIndex}`}
                         className={`border rounded-2xl p-4 transition-all ${
                           isActive ? 'border-white/60 bg-white/5' : 'border-white/10 bg-white/0'
                         }`}

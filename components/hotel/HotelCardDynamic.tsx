@@ -22,6 +22,11 @@ interface HotelCardDynamicProps {
   isFavorite?: boolean;
   onFavoriteToggle?: (hotelId: string, isFavorite: boolean) => void;
   layout?: 'vertical' | 'horizontal';
+  // Search context to persist across navigation
+  checkIn?: string;
+  checkOut?: string;
+  guests?: number;
+  rooms?: number;
 }
 
 export const HotelCardDynamic: React.FC<HotelCardDynamicProps> = ({
@@ -41,6 +46,10 @@ export const HotelCardDynamic: React.FC<HotelCardDynamicProps> = ({
   isFavorite = false,
   onFavoriteToggle,
   layout = 'vertical',
+  checkIn,
+  checkOut,
+  guests,
+  rooms,
 }) => {
   const [favorite, setFavorite] = useState(isFavorite);
   const [loading, setLoading] = useState(false);
@@ -137,7 +146,16 @@ export const HotelCardDynamic: React.FC<HotelCardDynamicProps> = ({
   };
 
   const handleCardClick = () => {
-    router.push(`/hotels/${slug ?? id}`);
+    // Build URL with search context preserved
+    const params = new URLSearchParams();
+    if (checkIn) params.set('checkIn', checkIn);
+    if (checkOut) params.set('checkOut', checkOut);
+    if (guests) params.set('guests', guests.toString());
+    if (rooms) params.set('rooms', rooms.toString());
+    
+    const queryString = params.toString();
+    const url = `/hotels/${slug ?? id}${queryString ? `?${queryString}` : ''}`;
+    router.push(url);
   };
 
   // Horizontal layout for list view
