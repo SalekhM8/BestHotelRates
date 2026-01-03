@@ -8,7 +8,15 @@ export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
+    // DEBUG: Log session info
+    console.log('🔍 BOOKINGS DEBUG:', {
+      hasSession: !!session,
+      userId: session?.user?.id,
+      userEmail: session?.user?.email,
+    });
+
     if (!session?.user?.id) {
+      console.log('❌ BOOKINGS: No user ID in session');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -17,6 +25,14 @@ export async function GET(request: Request) {
 
     const now = new Date();
     let whereClause: any = { userId: session.user.id };
+
+    // DEBUG: Also fetch ALL bookings to compare
+    const allBookings = await prisma.booking.findMany({
+      select: { id: true, userId: true, guestEmail: true, bookingReference: true },
+      take: 10,
+    });
+    console.log('🔍 ALL BOOKINGS IN DB:', allBookings);
+    console.log('🔍 LOOKING FOR userId:', session.user.id);
 
     if (filter === 'upcoming') {
       whereClause.checkIn = { gte: now };
@@ -30,6 +46,8 @@ export async function GET(request: Request) {
         createdAt: 'desc',
       },
     });
+
+    console.log('🔍 MATCHED BOOKINGS:', bookings.length);
 
     return NextResponse.json({ bookings });
   } catch (error) {
