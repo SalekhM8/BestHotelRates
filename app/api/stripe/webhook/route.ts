@@ -90,8 +90,6 @@ export async function POST(request: NextRequest) {
 
         const booking = await prisma.booking.create({ data });
 
-        console.log('✅ Booking created:', bookingReference);
-
         // Send confirmation email to customer
         const emailData = {
           bookingId: booking.id,
@@ -124,20 +122,14 @@ export async function POST(request: NextRequest) {
       break;
     }
 
-    case 'payment_intent.succeeded': {
-      const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      console.log('✅ Payment succeeded:', paymentIntent.id);
+    case 'payment_intent.succeeded':
+    case 'payment_intent.payment_failed':
+      // Handled by checkout.session.completed
       break;
-    }
-
-    case 'payment_intent.payment_failed': {
-      const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      console.log('❌ Payment failed:', paymentIntent.id);
-      break;
-    }
 
     default:
-      console.log(`Unhandled event type: ${event.type}`);
+      // Unhandled event types are silently ignored
+      break;
   }
 
   return NextResponse.json({ received: true });

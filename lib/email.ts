@@ -9,7 +9,9 @@ const getResend = () => {
   return new Resend(apiKey);
 };
 
-const FROM_EMAIL = process.env.FROM_EMAIL || 'bookings@besthotelrates.co.uk';
+// Use Resend's default sender until domain is verified
+// To use your own domain: 1) Add domain in Resend dashboard, 2) Add DNS records, 3) Set FROM_EMAIL in Vercel
+const FROM_EMAIL = process.env.FROM_EMAIL || 'Best Hotel Rates <onboarding@resend.dev>';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@besthotelrates.co.uk';
 
 interface BookingEmailData {
@@ -173,7 +175,6 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
   try {
     const resend = getResend();
     if (!resend) {
-      console.log('⚠️ Resend API key not configured, skipping confirmation email');
       return { success: false, error: 'Email service not configured' };
     }
 
@@ -189,7 +190,6 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
       return { success: false, error };
     }
 
-    console.log('✅ Confirmation email sent:', result?.id);
     return { success: true, id: result?.id };
   } catch (error) {
     console.error('Email send error:', error);
@@ -403,10 +403,208 @@ export async function sendCancellationEmail(data: CancellationEmailData) {
       return { success: false, error };
     }
 
-    console.log('✅ Cancellation email sent:', result?.id);
     return { success: true, id: result?.id };
   } catch (error) {
     console.error('Cancellation email send error:', error);
+    return { success: false, error };
+  }
+}
+
+// Send admin notification when a booking is cancelled
+export async function sendAdminCancellationNotification(data: CancellationEmailData & { userId?: string }) {
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Booking Cancelled</title></head>
+<body style="margin: 0; padding: 20px; font-family: 'Segoe UI', sans-serif; background-color: #f4f4f5;">
+  <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden;">
+    <div style="background: #dc2626; padding: 20px 30px;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 20px;">⚠️ Booking Cancelled</h1>
+    </div>
+    <div style="padding: 30px;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #64748b;">Reference</td>
+        <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #dc2626; font-weight: 600; text-align: right;">${data.bookingReference}</td></tr>
+        <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #64748b;">Guest</td>
+        <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #0f172a; text-align: right;">${data.guestName} (${data.guestEmail})</td></tr>
+        <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #64748b;">Hotel</td>
+        <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #0f172a; text-align: right;">${data.hotelName}</td></tr>
+        <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #64748b;">Dates</td>
+        <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #0f172a; text-align: right;">${formatDate(data.checkIn)} - ${formatDate(data.checkOut)}</td></tr>
+        ${data.refundAmount ? `<tr><td style="padding: 10px 0; color: #64748b;">Refund Amount</td>
+        <td style="padding: 10px 0; color: #22c55e; font-weight: 700; text-align: right;">${formatCurrency(data.refundAmount, data.currency)}</td></tr>` : ''}
+      </table>
+      <div style="text-align: center; margin-top: 25px;">
+        <a href="https://best-hotel-rates.vercel.app/admin/bookings" style="display: inline-block; background: #1e3a5f; color: #ffffff; text-decoration: none; padding: 12px 25px; border-radius: 8px; font-weight: 600;">View in Admin</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  try {
+    const resend = getResend();
+    if (!resend) return { success: false, error: 'Email service not configured' };
+
+    const { data: result, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: `❌ Cancellation: ${data.bookingReference} - ${data.hotelName}`,
+      html,
+    });
+
+    if (error) return { success: false, error };
+    return { success: true, id: result?.id };
+  } catch (error) {
+    return { success: false, error };
+  }
+}
+
+// Welcome email for new user registration
+interface WelcomeEmailData {
+  name: string;
+  email: string;
+}
+
+export async function sendWelcomeEmail(data: WelcomeEmailData) {
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background-color: #f4f4f5;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); padding: 40px 30px; border-radius: 16px 16px 0 0; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Welcome to Best Hotel Rates!</h1>
+    </div>
+    <div style="background: #ffffff; padding: 40px 30px; border-radius: 0 0 16px 16px;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <div style="width: 80px; height: 80px; background: #dbeafe; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;">
+          <span style="font-size: 40px;">🎉</span>
+        </div>
+      </div>
+      <h2 style="color: #0f172a; font-size: 24px; margin: 0 0 10px 0; text-align: center;">Hi ${data.name}!</h2>
+      <p style="color: #64748b; font-size: 16px; margin: 0 0 30px 0; text-align: center;">Thanks for joining us. Your account is now active.</p>
+      
+      <div style="background: #f8fafc; border-radius: 12px; padding: 25px; margin-bottom: 25px;">
+        <h3 style="color: #0f172a; font-size: 16px; margin: 0 0 15px 0;">What you can do now:</h3>
+        <ul style="color: #64748b; line-height: 1.8; padding-left: 20px; margin: 0;">
+          <li>Search thousands of hotels worldwide</li>
+          <li>Save your favourites to your wishlist</li>
+          <li>Book instantly with secure payments</li>
+          <li>Manage all your bookings in one place</li>
+        </ul>
+      </div>
+      
+      <div style="text-align: center;">
+        <a href="https://best-hotel-rates.vercel.app" style="display: inline-block; background: #3b82f6; color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 8px; font-weight: 600; font-size: 16px;">Start Searching</a>
+      </div>
+      
+      <div style="border-top: 1px solid #e2e8f0; margin-top: 30px; padding-top: 20px; text-align: center;">
+        <p style="color: #64748b; font-size: 14px; margin: 0;">Questions? <a href="mailto:support@besthotelrates.co.uk" style="color: #3b82f6;">Contact our support team</a></p>
+      </div>
+    </div>
+    <div style="text-align: center; padding: 20px;">
+      <p style="color: #64748b; font-size: 12px; margin: 0;">© 2025 Best Hotel Rates. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  try {
+    const resend = getResend();
+    if (!resend) return { success: false, error: 'Email service not configured' };
+
+    const { data: result, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: data.email,
+      subject: `Welcome to Best Hotel Rates, ${data.name}! 🎉`,
+      html,
+    });
+
+    if (error) return { success: false, error };
+    return { success: true, id: result?.id };
+  } catch (error) {
+    return { success: false, error };
+  }
+}
+
+// Check-in reminder email (send 24-48 hours before)
+interface ReminderEmailData {
+  bookingReference: string;
+  guestName: string;
+  guestEmail: string;
+  hotelName: string;
+  hotelLocation: string;
+  checkIn: Date;
+  checkOut: Date;
+  roomType: string;
+  numberOfRooms: number;
+  numberOfGuests: number;
+}
+
+export async function sendCheckInReminderEmail(data: ReminderEmailData) {
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background-color: #f4f4f5;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); padding: 40px 30px; border-radius: 16px 16px 0 0; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Your Trip is Almost Here! ✈️</h1>
+    </div>
+    <div style="background: #ffffff; padding: 40px 30px; border-radius: 0 0 16px 16px;">
+      <h2 style="color: #0f172a; font-size: 22px; margin: 0 0 10px 0;">Hi ${data.guestName},</h2>
+      <p style="color: #64748b; font-size: 16px; margin: 0 0 30px 0;">Just a reminder that your stay at <strong>${data.hotelName}</strong> is coming up!</p>
+      
+      <div style="background: #dbeafe; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 25px;">
+        <p style="color: #1e40af; font-size: 14px; margin: 0 0 5px 0; font-weight: 600;">📅 CHECK-IN DATE</p>
+        <p style="color: #1e3a8a; font-size: 24px; font-weight: 700; margin: 0;">${formatDate(data.checkIn)}</p>
+        <p style="color: #1e40af; font-size: 14px; margin: 10px 0 0 0;">From 3:00 PM onwards</p>
+      </div>
+      
+      <div style="background: #f8fafc; border-radius: 12px; padding: 25px; margin-bottom: 25px;">
+        <h3 style="color: #0f172a; font-size: 18px; margin: 0 0 5px 0;">${data.hotelName}</h3>
+        <p style="color: #64748b; font-size: 14px; margin: 0 0 15px 0;">📍 ${data.hotelLocation}</p>
+        <p style="color: #64748b; font-size: 14px; margin: 0;">
+          ${data.numberOfRooms} room(s) • ${data.numberOfGuests} guest(s) • ${data.roomType}
+        </p>
+      </div>
+      
+      <div style="background: #fef3c7; border-radius: 12px; padding: 20px; margin-bottom: 25px;">
+        <h4 style="color: #92400e; font-size: 14px; margin: 0 0 10px 0;">📋 Don't Forget:</h4>
+        <ul style="color: #92400e; font-size: 14px; padding-left: 20px; margin: 0; line-height: 1.6;">
+          <li>Bring valid photo ID matching the booking name</li>
+          <li>A credit card may be required for incidentals</li>
+          <li>Your booking reference: <strong>${data.bookingReference}</strong></li>
+        </ul>
+      </div>
+      
+      <div style="text-align: center;">
+        <a href="https://best-hotel-rates.vercel.app/bookings" style="display: inline-block; background: #3b82f6; color: #ffffff; text-decoration: none; padding: 14px 30px; border-radius: 8px; font-weight: 600;">View Booking Details</a>
+      </div>
+      
+      <div style="border-top: 1px solid #e2e8f0; margin-top: 30px; padding-top: 20px; text-align: center;">
+        <p style="color: #64748b; font-size: 14px; margin: 0;">Have a great trip! 🌟</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  try {
+    const resend = getResend();
+    if (!resend) return { success: false, error: 'Email service not configured' };
+
+    const { data: result, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: data.guestEmail,
+      subject: `Your stay at ${data.hotelName} is tomorrow! ✈️`,
+      html,
+    });
+
+    if (error) return { success: false, error };
+    return { success: true, id: result?.id };
+  } catch (error) {
     return { success: false, error };
   }
 }

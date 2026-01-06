@@ -96,13 +96,20 @@ export default function LoginPage() {
               error={form.formState.errors.email?.message}
             />
 
-            <Input
-              label="Password"
-              type="password"
-              placeholder="••••••••"
-              {...form.register('password')}
-              error={form.formState.errors.password?.message}
-            />
+            <div>
+              <Input
+                label="Password"
+                type="password"
+                placeholder="••••••••"
+                {...form.register('password')}
+                error={form.formState.errors.password?.message}
+              />
+              <div className="mt-2 text-right">
+                <Link href="/forgot-password" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
+                  Forgot password?
+                </Link>
+              </div>
+            </div>
 
             <Button type="submit" fullWidth disabled={isLoading}>
               {isLoading ? 'Signing in...' : 'Sign In'}

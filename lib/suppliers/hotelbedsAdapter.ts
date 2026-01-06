@@ -153,7 +153,6 @@ async function resolveDestinationCode(query: string): Promise<string | undefined
   const lowerQuery = trimmed.toLowerCase();
   for (const [city, code] of Object.entries(DESTINATION_CODES)) {
     if (lowerQuery.includes(city) || city.includes(lowerQuery)) {
-      console.log(`Resolved "${query}" to destination code: ${code}`);
       return code;
     }
   }
@@ -203,7 +202,6 @@ async function fetchHotelContent(hotelCode: string): Promise<{
   // HotelBeds requires NUMERIC hotel codes, not slugs
   const numericCode = Number(hotelCode);
   if (!Number.isFinite(numericCode) || numericCode <= 0) {
-    console.log(`Skipping HotelBeds content API - invalid hotel code: "${hotelCode}"`);
     return null;
   }
 
@@ -527,20 +525,15 @@ export const hotelbedsAdapter: SupplierAdapter = {
       const cacheKey = `hb-search:${destinationCode}:${body.stay.checkIn}:${body.stay.checkOut}:${adults}:${children}:${rooms}:${limit}`;
       const data = await withCache(cacheKey, 1000 * 60, () => availabilityRequest(body));
       const hotels = data?.hotels?.hotels ?? [];
-      console.log(`HotelBeds returned ${hotels.length} hotels for ${destinationCode} (${nights} nights)`);
       
-      // If HotelBeds returns 0 results, return empty - NO MOCKS
       if (hotels.length === 0) {
-        console.log('HotelBeds returned 0 hotels for', destinationCode);
         return [];
       }
       
       // Pass nights to calculate per-night rates
       return hotels.map((hotel: any) => toHotelSummary(hotel, nights));
     } catch (err: any) {
-      console.error('HotelBeds search error:', err.message || err);
-      // Fallback to test data that matches HotelBeds structure EXACTLY
-      console.log(`Falling back to test data for ${destinationCode}`);
+      // Fallback to test data when API fails
       const mockHotels = getMockHotelsForDestination(destinationCode);
       return mockHotels.map((hotel: any) => toHotelSummary(hotel, nights));
     }
@@ -553,7 +546,6 @@ export const hotelbedsAdapter: SupplierAdapter = {
     // If the ID is not a valid number, skip the API call entirely
     const numericId = Number(hotelId);
     if (!Number.isFinite(numericId) || numericId <= 0) {
-      console.log(`Skipping HotelBeds API call - invalid hotel ID: "${hotelId}" (expected numeric ID)`);
       return null;
     }
 
@@ -617,9 +609,7 @@ export const hotelbedsAdapter: SupplierAdapter = {
       // Fallback to test data
       const mockHotel = getMockHotelById(hotelId);
       if (mockHotel) {
-        console.log(`Using test data for hotel ${hotelId}`);
         const details = toHotelDetails(mockHotel);
-        // Add images from mock data
         if (mockHotel.images?.[0]?.path) {
           details.images = [{ id: '1', url: mockHotel.images[0].path, isPrimary: true, caption: '' }];
           details.heroImage = mockHotel.images[0].path;

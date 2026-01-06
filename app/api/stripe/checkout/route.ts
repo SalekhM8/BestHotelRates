@@ -42,14 +42,6 @@ export async function POST(request: Request) {
       process.env.NEXT_PUBLIC_APP_URL ||
       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3001');
 
-    // DEBUG: Log session and user ID
-    console.log('🔍 CHECKOUT DEBUG:', {
-      hasSession: !!session,
-      hasUser: !!session?.user,
-      userId: session?.user?.id,
-      userEmail: session?.user?.email,
-    });
-
     const safeString = (val: any, fallback = '') =>
       val === null || val === undefined ? fallback : String(val);
     const safeNumberString = (val: any, fallback = '0') =>

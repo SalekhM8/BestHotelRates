@@ -14,7 +14,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { stripe } from '@/lib/stripe';
 import { BookingStatus, PaymentStatus } from '@prisma/client';
-import { sendCancellationEmail } from '@/lib/email';
+import { sendCancellationEmail, sendAdminCancellationNotification } from '@/lib/email';
 
 // Check if booking can be cancelled
 function canCancelBooking(booking: any): { canCancel: boolean; reason?: string; refundAmount?: number } {
@@ -148,8 +148,8 @@ export async function POST(
       },
     });
 
-    // Send cancellation email
-    await sendCancellationEmail({
+    // Send cancellation emails (to customer and admin)
+    const emailData = {
       bookingReference: booking.bookingReference,
       guestName: booking.guestName,
       guestEmail: booking.guestEmail,
@@ -159,7 +159,12 @@ export async function POST(
       checkOut: booking.checkOut,
       refundAmount: refundAmount || 0,
       currency: booking.currency,
-    });
+    };
+    
+    Promise.all([
+      sendCancellationEmail(emailData),
+      sendAdminCancellationNotification(emailData),
+    ]).catch(() => {});
 
     return NextResponse.json({
       success: true,

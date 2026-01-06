@@ -128,9 +128,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { supplierCode, ratePlanId, bookHash, rateKey, totalAmount, currency, hotelId } = body;
 
-    // DEBUG: Log what we received
-    console.log('PREBOOK REQUEST:', JSON.stringify({ supplierCode, hotelId, ratePlanId, rateKey: rateKey?.substring(0, 50) }));
-
     if (!ratePlanId && !bookHash && !rateKey) {
       return NextResponse.json(
         { success: false, error: 'Missing rate identifier' },
@@ -151,10 +148,7 @@ export async function POST(request: NextRequest) {
       (rateKeyNum >= 100000 && rateKeyNum < 600000) ||
       (ratePlanPrefix >= 100000 && ratePlanPrefix < 600000);
     
-    console.log('PREBOOK CHECK:', { hotelIdNum, rateKeyNum, ratePlanPrefix, isTestData });
-    
     if (isTestData) {
-      console.log('Test data detected - skipping supplier prebook validation');
       return NextResponse.json({
         success: true,
         priceChanged: false,
@@ -181,8 +175,6 @@ export async function POST(request: NextRequest) {
     switch (supplier) {
       case 'RATEHAWK':
         if (!isRatehawkConfigured) {
-          // No credentials - treat as test/mock data
-          console.log('RateHawk not configured - skipping validation');
           result = prebookLocal(ratePlanId, totalAmount, currency);
           break;
         }
@@ -197,8 +189,6 @@ export async function POST(request: NextRequest) {
 
       case 'HOTELBEDS':
         if (!isHotelbedsConfigured) {
-          // No credentials - treat as test/mock data
-          console.log('HotelBeds not configured - skipping validation');
           result = prebookLocal(ratePlanId, totalAmount, currency);
           break;
         }

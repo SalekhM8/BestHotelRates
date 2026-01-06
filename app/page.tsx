@@ -4,6 +4,7 @@ import { AdvancedSearchBar } from '@/components/hotel/AdvancedSearchBar';
 import { HotelCardDynamic } from '@/components/hotel/HotelCardDynamic';
 import { RecentlyViewedSection } from '@/components/hotel/RecentlyViewedSection';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { TrustSection } from '@/components/ui/TrustBadges';
 import { getFeaturedHotelsByCity } from '@/lib/hotels-data';
 import { SupplierHotelSummary } from '@/lib/suppliers/types';
 import Image from 'next/image';
@@ -260,6 +261,9 @@ export default async function HomePage() {
             </Link>
           </div>
         </section>
+
+        {/* Trust Section */}
+        <TrustSection />
       </div>
     </main>
   );

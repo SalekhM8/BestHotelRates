@@ -573,7 +573,6 @@ export const ratehawkAdapter: SupplierAdapter = {
 
   async search(params: SupplierSearchParams): Promise<SupplierHotelSummary[]> {
     if (!isRatehawkConfigured) {
-      console.log('RateHawk not configured, falling back to local');
       return localInventoryAdapter.search(params);
     }
 
@@ -593,7 +592,6 @@ export const ratehawkAdapter: SupplierAdapter = {
     // Resolve destination to region ID
     const regionId = await resolveRegionId(destination);
     if (!regionId) {
-      console.log(`Could not resolve region for "${destination}", falling back to local`);
       return localInventoryAdapter.search(params);
     }
 

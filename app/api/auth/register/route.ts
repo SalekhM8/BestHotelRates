@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { sendWelcomeEmail } from '@/lib/email';
 
 const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -45,6 +46,9 @@ export async function POST(request: Request) {
 
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
+
+    // Send welcome email (non-blocking)
+    sendWelcomeEmail({ name: user.name || 'there', email: user.email }).catch(() => {});
 
     return NextResponse.json(
       {
