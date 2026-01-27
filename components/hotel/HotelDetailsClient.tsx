@@ -331,8 +331,8 @@ export const HotelDetailsClient: React.FC<Props> = ({
                           <div className="space-y-1">
                             <p className="text-xs text-gray-700 capitalize">{plan.boardType.replace(/_/g, ' ')}</p>
                             {plan.cancellationPolicy && (
-                              <p className="text-xs text-green-600 font-medium">
-                                {plan.cancellationPolicy.refundable ? 'Free cancellation' : 'Non-refundable'}
+                              <p className={`text-xs font-medium ${plan.cancellationPolicy.refundableUntilHours ? 'text-green-600' : 'text-gray-500'}`}>
+                                {plan.cancellationPolicy.refundableUntilHours ? 'Free cancellation' : 'Non-refundable'}
                               </p>
                             )}
                             {plan.availableRooms && plan.availableRooms <= 5 && (

@@ -161,9 +161,8 @@ export default async function HomePage() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <div className="absolute bottom-4 left-4 text-white">
-                  <h3 className="text-xl font-bold flex items-center gap-2">
-                    {dest.name} <span>{dest.flag}</span>
-                  </h3>
+                  <h3 className="text-xl font-bold">{dest.name}</h3>
+                  <p className="text-sm text-white/80">{dest.country}</p>
                 </div>
               </Link>
             ))}
