@@ -108,16 +108,23 @@ export async function POST(request: NextRequest) {
           isFreeCancellation: metadata.isFreeCancellation === 'true',
         };
 
-        // Send emails in parallel (non-blocking)
-        Promise.all([
-          sendBookingConfirmationEmail(emailData),
-          sendAdminNotificationEmail(emailData),
-        ]).catch((err) => {
-          console.error('Email sending failed:', err);
-        });
+        // Send emails - MUST await to prevent Vercel function termination
+        console.log('[Webhook] Sending emails to:', metadata.guestEmail);
+        try {
+          const [customerEmailResult, adminEmailResult] = await Promise.all([
+            sendBookingConfirmationEmail(emailData),
+            sendAdminNotificationEmail(emailData),
+          ]);
+          console.log('[Webhook] Customer email result:', customerEmailResult);
+          console.log('[Webhook] Admin email result:', adminEmailResult);
+        } catch (emailErr) {
+          console.error('[Webhook] Email sending failed:', emailErr);
+          // Don't fail the webhook - booking is still created
+        }
         
+        console.log('[Webhook] Booking created successfully:', bookingReference);
       } catch (error) {
-        console.error('Error creating booking:', error);
+        console.error('[Webhook] Error creating booking:', error);
       }
       break;
     }

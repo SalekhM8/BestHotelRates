@@ -322,3 +322,4 @@ export function getAllMockHotels(): any[] {
   return Object.values(MOCK_HOTELS_BY_DESTINATION).flat();
 }
 
+

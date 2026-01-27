@@ -2,31 +2,23 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 
-export type SortOption = 
-  | 'recommended'
-  | 'price-asc'
-  | 'price-desc'
-  | 'rating-desc'
-  | 'distance';
+type Props = {
+  value: string;
+  onChange: (value: string) => void;
+};
 
-interface SortDropdownProps {
-  value: SortOption;
-  onChange: (value: SortOption) => void;
-}
-
-const SORT_OPTIONS: { value: SortOption; label: string; icon: string }[] = [
-  { value: 'recommended', label: 'Recommended', icon: '✨' },
-  { value: 'price-asc', label: 'Price: Low to High', icon: '💰' },
-  { value: 'price-desc', label: 'Price: High to Low', icon: '💎' },
-  { value: 'rating-desc', label: 'Highest Rated', icon: '⭐' },
-  { value: 'distance', label: 'Distance from Center', icon: '📍' },
+const sortOptions = [
+  { value: 'recommended', label: 'Our top picks' },
+  { value: 'price-low', label: 'Price (lowest first)' },
+  { value: 'price-high', label: 'Price (highest first)' },
+  { value: 'rating', label: 'Best reviewed and lowest price' },
+  { value: 'stars-high', label: 'Property rating (high to low)' },
+  { value: 'stars-low', label: 'Property rating (low to high)' },
 ];
 
-export function SortDropdown({ value, onChange }: SortDropdownProps) {
+export function SortDropdown({ value, onChange }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const selectedOption = SORT_OPTIONS.find((o) => o.value === value) || SORT_OPTIONS[0];
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -34,55 +26,41 @@ export function SortDropdown({ value, onChange }: SortDropdownProps) {
         setIsOpen(false);
       }
     }
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const selectedOption = sortOptions.find(o => o.value === value) || sortOptions[0];
 
   return (
     <div ref={dropdownRef} className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-white hover:bg-white/15 transition-all"
+        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
       >
-        <span className="text-sm font-medium">Sort: {selectedOption.label}</span>
-        <svg
-          className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
+        <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+        </svg>
+        <span className="text-sm text-gray-700">Sort by: {selectedOption.label}</span>
+        <svg className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-56 bg-slate-900/95 backdrop-blur-md border border-white/20 rounded-xl shadow-xl overflow-hidden z-50">
-          {SORT_OPTIONS.map((option) => (
+        <div className="absolute right-0 top-full mt-1 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50">
+          {sortOptions.map((option) => (
             <button
               key={option.value}
               onClick={() => {
                 onChange(option.value);
                 setIsOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                value === option.value
-                  ? 'bg-blue-500/30 text-white'
-                  : 'text-white/80 hover:bg-white/10'
+              className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${
+                value === option.value ? 'text-[#5DADE2] bg-[#5DADE2]/5' : 'text-gray-700'
               }`}
             >
-              <span>{option.icon}</span>
-              <span className="text-sm font-medium">{option.label}</span>
-              {value === option.value && (
-                <svg
-                  className="w-4 h-4 ml-auto text-blue-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              )}
+              {option.label}
             </button>
           ))}
         </div>
@@ -90,4 +68,3 @@ export function SortDropdown({ value, onChange }: SortDropdownProps) {
     </div>
   );
 }
-

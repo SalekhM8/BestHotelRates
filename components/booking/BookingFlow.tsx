@@ -6,9 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { BookingSelectionPayload } from '@/lib/hotels-data';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
+import Link from 'next/link';
 
 const guestInfoSchema = z.object({
   guestName: z.string().min(2, 'Name is required'),
@@ -29,15 +27,8 @@ type Props = {
 
 export function BookingFlowClient({ initialSelection, user }: Props) {
   const router = useRouter();
-  const [step, setStep] = useState<'guest-info' | 'summary' | 'prebook' | 'payment'>('guest-info');
-  const [bookingData, setBookingData] = useState<GuestInfoForm | null>(null);
   const [loading, setLoading] = useState(false);
-  const [prebookResult, setPrebookResult] = useState<{
-    success: boolean;
-    confirmedPrice?: number;
-    priceChanged?: boolean;
-    error?: string;
-  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const form = useForm<GuestInfoForm>({
     resolver: zodResolver(guestInfoSchema),
@@ -49,66 +40,12 @@ export function BookingFlowClient({ initialSelection, user }: Props) {
     },
   });
 
-  const onSubmit = (data: GuestInfoForm) => {
-    setBookingData(data);
-    setStep('summary');
-  };
-
-  // Prebook step - validates rate availability before payment
-  const handlePrebook = async () => {
-    if (!user) {
-      const proceed = window.confirm('Continue as guest? Your booking will not be saved to an account.');
-      if (!proceed) return;
-    }
-
-    if (!bookingData) return;
-    setStep('prebook');
+  const onSubmit = async (data: GuestInfoForm) => {
     setLoading(true);
-    setPrebookResult(null);
+    setError(null);
 
     try {
-      const response = await fetch('/api/prebook', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          supplierCode: initialSelection.hotel.supplierCode || 'LOCAL',
-          hotelId: initialSelection.hotel.id, // Used to detect test data
-          ratePlanId: initialSelection.ratePlan.id,
-          bookHash: initialSelection.ratePlan.id, // For RateHawk, this is the book_hash
-          rateKey: initialSelection.ratePlan.id, // For HotelBeds, this is the rateKey
-          totalAmount: initialSelection.pricing.total,
-          currency: initialSelection.ratePlan.currency,
-        }),
-      });
-
-      const result = await response.json();
-      setPrebookResult(result);
-
-      if (result.success) {
-        // Rate confirmed, proceed to payment
-        await handleProceedToPayment(result.confirmedPrice || initialSelection.pricing.total);
-      } else {
-        // Rate not available or price changed
-        setLoading(false);
-      }
-    } catch (error) {
-      console.error('Prebook error:', error);
-      setPrebookResult({
-        success: false,
-        error: 'Failed to verify rate availability. Please try again.',
-      });
-      setLoading(false);
-    }
-  };
-
-  const handleProceedToPayment = async (confirmedTotal?: number) => {
-    if (!bookingData) return;
-    setStep('payment');
-    setLoading(true);
-
-    const totalToCharge = confirmedTotal || initialSelection.pricing.total;
-
-    try {
+      // Create Stripe checkout session
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -124,328 +61,248 @@ export function BookingFlowClient({ initialSelection, user }: Props) {
           adults: initialSelection.guests.adults,
           children: initialSelection.guests.children,
           rooms: initialSelection.guests.rooms,
-          guestName: bookingData.guestName,
-          guestEmail: bookingData.guestEmail,
-          guestPhone: bookingData.guestPhone,
-          specialRequests: bookingData.specialRequests,
+          guestName: data.guestName,
+          guestEmail: data.guestEmail,
+          guestPhone: data.guestPhone,
+          specialRequests: data.specialRequests,
           roomRate: initialSelection.pricing.subtotal,
           taxes: initialSelection.pricing.taxes + initialSelection.pricing.fees,
-          totalAmount: totalToCharge,
+          totalAmount: initialSelection.pricing.total,
           currency: initialSelection.ratePlan.currency,
           addOns: initialSelection.addOns.selected,
           supplierCode: initialSelection.hotel.supplierCode,
         }),
       });
 
-      const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
+      const result = await response.json();
+      if (result.url) {
+        window.location.href = result.url;
       } else {
-        alert('Payment setup failed. Please try again.');
-        setStep('summary');
+        setError('Payment setup failed. Please try again.');
       }
-    } catch (error) {
-      console.error('Payment error:', error);
-      alert('Payment setup failed. Please try again.');
-      setStep('summary');
+    } catch (err) {
+      console.error('Payment error:', err);
+      setError('An error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 md:px-6 pb-24 space-y-10">
-      <h1 className="text-3xl md:text-4xl font-bold text-white drop-shadow-2xl">
-        Complete Your Booking
-      </h1>
-
-      <div className="flex items-center justify-center mb-6">
-        <div className="flex items-center gap-4">
-          <StepBadge label="Guest Info" index={1} active={step === 'guest-info'} />
-          <div className="w-12 h-0.5 bg-white/20" />
-          <StepBadge label="Summary" index={2} active={step === 'summary'} />
-          <div className="w-12 h-0.5 bg-white/20" />
-          <StepBadge label="Confirm" index={3} active={step === 'prebook'} />
-          <div className="w-12 h-0.5 bg-white/20" />
-          <StepBadge label="Payment" index={4} active={step === 'payment'} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Form */}
         <div className="lg:col-span-2 space-y-6">
-          {step === 'guest-info' && (
-            <GlassCard>
-              <h2 className="text-2xl font-bold text-white mb-6">Guest Information</h2>
-              {!user && (
-                <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl text-sm text-blue-100">
-                  You are booking as a guest.{' '}
-                  <button
-                    onClick={() => router.push('/login')}
-                    className="underline hover:text-white"
-                  >
-                    Login
-                  </button>{' '}
-                  to sync bookings and earn loyalty perks.
-                </div>
-              )}
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-                <Input
-                  label="Full Name"
-                  placeholder="John Doe"
-                  {...form.register('guestName')}
-                  error={form.formState.errors.guestName?.message}
-                />
-                <Input
-                  label="Email"
-                  type="email"
-                  placeholder="your@email.com"
-                  {...form.register('guestEmail')}
-                  error={form.formState.errors.guestEmail?.message}
-                />
-                <Input
-                  label="Phone Number"
-                  type="tel"
-                  placeholder="+44 7700 900000"
-                  {...form.register('guestPhone')}
-                  error={form.formState.errors.guestPhone?.message}
-                />
-                <div>
-                  <label className="block text-xs font-semibold text-white uppercase tracking-wide mb-2">
-                    Special Requests (Optional)
-                  </label>
-                  <textarea
-                    {...form.register('specialRequests')}
-                    placeholder="Any special requirements..."
-                    className="glass-input w-full px-4 py-3 min-h-[120px] resize-none"
+          {/* Property Info */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex gap-4">
+              <div className="w-24 h-24 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
+                {initialSelection.hotel.heroImage && (
+                  <img
+                    src={initialSelection.hotel.heroImage}
+                    alt={initialSelection.hotel.name}
+                    className="w-full h-full object-cover"
                   />
-                </div>
-                <Button type="submit" fullWidth size="lg">
-                  Continue to Summary
-                </Button>
-              </form>
-            </GlassCard>
-          )}
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Hotel</p>
+                <h2 className="font-bold text-gray-900 text-lg">{initialSelection.hotel.name}</h2>
+                <p className="text-sm text-gray-600">{initialSelection.hotel.location}</p>
+                <p className="text-sm text-green-600 mt-2">✓ Free cancellation · ✓ No prepayment needed</p>
+              </div>
+            </div>
+          </div>
 
-          {step === 'summary' && bookingData && (
-            <GlassCard>
-              <h2 className="text-2xl font-bold text-white mb-6">Booking Summary</h2>
-              <div className="space-y-4 mb-6">
-                <SummaryRow label="Guest Name" value={bookingData.guestName} />
-                <SummaryRow label="Email" value={bookingData.guestEmail} />
-                <SummaryRow label="Phone" value={bookingData.guestPhone} />
-                {bookingData.specialRequests && (
-                  <SummaryRow label="Special Requests" value={bookingData.specialRequests} />
+          {/* Your booking details */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <h3 className="font-bold text-gray-900 text-lg mb-4">Your booking details</h3>
+            
+            <div className="grid grid-cols-2 gap-6 mb-4">
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Check-in</p>
+                <p className="font-bold text-gray-900">{formatDate(initialSelection.dates.checkIn)}</p>
+                <p className="text-sm text-gray-500">14:00 – 00:00</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Check-out</p>
+                <p className="font-bold text-gray-900">{formatDate(initialSelection.dates.checkOut)}</p>
+                <p className="text-sm text-gray-500">07:00 – 10:00</p>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-sm text-gray-500 mb-1">Total length of stay:</p>
+              <p className="font-bold text-gray-900">{initialSelection.dates.nights} night{initialSelection.dates.nights > 1 ? 's' : ''}</p>
+            </div>
+
+            <div className="border-t border-gray-100 pt-4 mt-4">
+              <p className="text-sm text-gray-500 mb-1">You selected</p>
+              <p className="font-bold text-gray-900">{initialSelection.guests.rooms} room for {initialSelection.guests.adults} adults{initialSelection.guests.children > 0 ? ` and ${initialSelection.guests.children} children` : ''}</p>
+              <button 
+                onClick={() => router.back()} 
+                className="text-sm text-[#5DADE2] hover:underline mt-1"
+              >
+                Change your selection
+              </button>
+            </div>
+          </div>
+
+          {/* Guest Information Form */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <h3 className="font-bold text-gray-900 text-lg mb-4">Enter your details</h3>
+            
+            {!user && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-gray-700">
+                  <Link href="/login" className="text-[#5DADE2] font-semibold hover:underline">Sign in</Link> to book faster and unlock Genius discounts!
+                </p>
+              </div>
+            )}
+
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Full name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  {...form.register('guestName')}
+                  className="input-field"
+                  placeholder="First name and surname"
+                />
+                {form.formState.errors.guestName && (
+                  <p className="text-red-500 text-sm mt-1">{form.formState.errors.guestName.message}</p>
                 )}
               </div>
 
-              <div className="flex gap-3">
-                <Button variant="secondary" onClick={() => setStep('guest-info')} fullWidth>
-                  Back
-                </Button>
-                <Button onClick={handlePrebook} fullWidth loading={loading}>
-                  Confirm & Pay
-                </Button>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email address <span className="text-red-500">*</span>
+                </label>
+                <input
+                  {...form.register('guestEmail')}
+                  type="email"
+                  className="input-field"
+                  placeholder="email@example.com"
+                />
+                <p className="text-xs text-gray-500 mt-1">Confirmation email goes to this address</p>
+                {form.formState.errors.guestEmail && (
+                  <p className="text-red-500 text-sm mt-1">{form.formState.errors.guestEmail.message}</p>
+                )}
               </div>
-            </GlassCard>
-          )}
 
-          {step === 'prebook' && (
-            <GlassCard className="py-12">
-              {loading && !prebookResult && (
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4" />
-                  <h2 className="text-2xl font-bold text-white mb-2">Verifying Availability</h2>
-                  <p className="text-white/70">Confirming your rate with the hotel...</p>
-                </div>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  {...form.register('guestPhone')}
+                  type="tel"
+                  className="input-field"
+                  placeholder="+44 7700 900000"
+                />
+                <p className="text-xs text-gray-500 mt-1">Needed by the property to validate your booking</p>
+                {form.formState.errors.guestPhone && (
+                  <p className="text-red-500 text-sm mt-1">{form.formState.errors.guestPhone.message}</p>
+                )}
+              </div>
 
-              {prebookResult && !prebookResult.success && (
-                <div className="text-center">
-                  <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Special requests (optional)
+                </label>
+                <textarea
+                  {...form.register('specialRequests')}
+                  className="input-field min-h-[100px] resize-none"
+                  placeholder="Special requests cannot be guaranteed – but the property will do its best to meet your needs."
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3.5 bg-[#5DADE2] hover:bg-[#3498DB] text-white font-semibold rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
-                  </div>
-                  <h2 className="text-2xl font-bold text-white mb-2">Rate Unavailable</h2>
-                  <p className="text-white/70 mb-6">
-                    {prebookResult.error || 'This rate is no longer available. Please select another option.'}
-                  </p>
-                  {prebookResult.priceChanged && prebookResult.confirmedPrice && (
-                    <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl mb-6">
-                      <p className="text-yellow-200">
-                        New price: {formatCurrency(initialSelection.ratePlan.currency, prebookResult.confirmedPrice)}
-                      </p>
-                    </div>
-                  )}
-                  <div className="flex gap-3 justify-center">
-                    <Button variant="secondary" onClick={() => router.back()}>
-                      Choose Another Room
-                    </Button>
-                    <Button onClick={() => setStep('summary')}>
-                      Try Again
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </GlassCard>
-          )}
-
-          {step === 'payment' && (
-            <GlassCard className="text-center py-16">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-white mb-4">Redirecting to payment...</h2>
-              <p className="text-white/70">Please wait while we secure your booking.</p>
-            </GlassCard>
-          )}
+                    Processing...
+                  </>
+                ) : (
+                  'Complete booking'
+                )}
+              </button>
+            </form>
+          </div>
         </div>
 
-        {/* Booking Details */}
+        {/* Sidebar */}
         <div className="lg:col-span-1">
-          <GlassCard className="sticky top-24 space-y-5">
-            <div>
-              <p className="text-xs uppercase text-white/60 tracking-[0.4em] mb-1">Hotel</p>
-              <h3 className="text-xl font-bold text-white">{initialSelection.hotel.name}</h3>
-              <p className="text-white/70 text-sm">{initialSelection.hotel.location}</p>
-              <button
-                className="text-sm text-blue-100 underline mt-1"
-                onClick={() => router.back()}
-                type="button"
-              >
-                Modify selection
-              </button>
-            </div>
-
-            <div className="border border-white/10 rounded-2xl p-4 space-y-2 text-sm text-white/80">
-              <div className="flex justify-between">
-                <span>Room Type</span>
-                <span>{initialSelection.roomType.name}</span>
+          <div className="bg-white rounded-lg border border-gray-200 p-6 sticky top-4">
+            <h3 className="font-bold text-gray-900 text-lg mb-4">Your price summary</h3>
+            
+            <div className="space-y-3 mb-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Room × {initialSelection.dates.nights} nights</span>
+                <span className="text-gray-900">{formatCurrency(initialSelection.ratePlan.currency, initialSelection.pricing.subtotal)}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Package</span>
-                <span>{initialSelection.ratePlan.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Check-in</span>
-                <span>{formatDate(initialSelection.dates.checkIn)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Check-out</span>
-                <span>{formatDate(initialSelection.dates.checkOut)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Guests</span>
-                <span>
-                  {initialSelection.guests.adults} adults · {initialSelection.guests.children} children
-                </span>
-              </div>
-            </div>
-
-            {initialSelection.addOns.selected.length > 0 && (
-              <div>
-                <p className="text-xs uppercase text-white/60 tracking-[0.4em] mb-2">Add-ons</p>
-                <div className="space-y-2 text-sm text-white/80">
-                  {initialSelection.addOns.selected.map((addOn) => (
-                    <div key={addOn.id} className="flex justify-between">
-                      <span>{addOn.name}</span>
-                      <span>
-                        {formatCurrency(initialSelection.ratePlan.currency, addOn.price)} ×{' '}
-                        {addOn.quantity}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="border border-white/10 rounded-2xl p-4 space-y-2 text-sm text-white/80">
-              <div className="flex justify-between">
-                <span>
-                  {initialSelection.dates.nights} night{initialSelection.dates.nights > 1 ? 's' : ''}{' '}
-                  × {initialSelection.guests.rooms} room{initialSelection.guests.rooms > 1 ? 's' : ''}
-                </span>
-                <span>
-                  {formatCurrency(initialSelection.ratePlan.currency, initialSelection.pricing.subtotal)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Taxes & Fees</span>
-                <span>
-                  {formatCurrency(
-                    initialSelection.ratePlan.currency,
-                    initialSelection.pricing.taxes + initialSelection.pricing.fees,
-                  )}
-                </span>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Taxes and fees</span>
+                <span className="text-gray-900">{formatCurrency(initialSelection.ratePlan.currency, initialSelection.pricing.taxes + initialSelection.pricing.fees)}</span>
               </div>
               {initialSelection.pricing.addOns > 0 && (
-                <div className="flex justify-between">
-                  <span>Add-ons</span>
-                  <span>
-                    {formatCurrency(initialSelection.ratePlan.currency, initialSelection.pricing.addOns)}
-                  </span>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Add-ons</span>
+                  <span className="text-gray-900">{formatCurrency(initialSelection.ratePlan.currency, initialSelection.pricing.addOns)}</span>
                 </div>
               )}
-              <div className="border-t border-white/10 pt-3 flex justify-between text-white text-xl font-bold">
-                <span>Total</span>
-                <span>
-                  {formatCurrency(initialSelection.ratePlan.currency, initialSelection.pricing.total)}
-                </span>
+            </div>
+
+            <div className="border-t border-gray-200 pt-4 mb-4">
+              <div className="flex justify-between items-baseline">
+                <span className="font-bold text-gray-900 text-lg">Price</span>
+                <div className="text-right">
+                  <span className="font-bold text-2xl text-gray-900">{formatCurrency(initialSelection.ratePlan.currency, initialSelection.pricing.total)}</span>
+                  <p className="text-xs text-gray-500">Includes taxes and charges</p>
+                </div>
               </div>
             </div>
 
-            {/* Cancellation Policy */}
-            {initialSelection.ratePlan.isRefundable && (
-              <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
-                <div className="flex items-center gap-2 text-green-400 font-semibold mb-1">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Free Cancellation
-                </div>
-                <p className="text-sm text-green-200/70">
-                  Cancel for free until {initialSelection.ratePlan.cancellationDeadline || '48 hours before check-in'}
-                </p>
-              </div>
-            )}
+            {/* Price Match */}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-green-700 font-medium">✓ We Price Match</p>
+              <p className="text-xs text-green-600">Found it cheaper? We'll refund the difference</p>
+            </div>
 
-            {!initialSelection.ratePlan.isRefundable && (
-              <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
-                <div className="flex items-center gap-2 text-yellow-400 font-semibold mb-1">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  Non-Refundable
-                </div>
-                <p className="text-sm text-yellow-200/70">
-                  This rate cannot be cancelled or modified
+            {/* Cancellation info */}
+            {initialSelection.ratePlan.isRefundable ? (
+              <div className="border border-gray-200 rounded-lg p-3">
+                <p className="text-sm font-medium text-green-600">Free cancellation</p>
+                <p className="text-xs text-gray-500">
+                  Before {initialSelection.ratePlan.cancellationDeadline || '48 hours before check-in'}
                 </p>
               </div>
+            ) : (
+              <div className="border border-yellow-200 bg-yellow-50 rounded-lg p-3">
+                <p className="text-sm font-medium text-yellow-700">Non-refundable rate</p>
+                <p className="text-xs text-yellow-600">This booking cannot be cancelled</p>
+              </div>
             )}
-          </GlassCard>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
-const StepBadge = ({ label, index, active }: { label: string; index: number; active: boolean }) => (
-  <div className={`flex items-center gap-2 ${active ? 'text-white' : 'text-white/50'}`}>
-    <div
-      className={`w-8 h-8 rounded-full flex items-center justify-center ${
-        active ? 'bg-white/30' : 'bg-white/10'
-      }`}
-    >
-      {index}
-    </div>
-    <span className="hidden md:inline font-semibold">{label}</span>
-  </div>
-);
-
-const SummaryRow = ({ label, value }: { label: string; value: string }) => (
-  <div>
-    <p className="text-white/60 text-sm">{label}</p>
-    <p className="text-white font-medium">{value}</p>
-  </div>
-);
 
 const formatCurrency = (currency: string, amount: number) =>
   new Intl.NumberFormat('en-GB', {
@@ -455,6 +312,6 @@ const formatCurrency = (currency: string, amount: number) =>
   }).format(amount);
 
 const formatDate = (value: string) =>
-  new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(
+  new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).format(
     new Date(value),
   );

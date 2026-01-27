@@ -1,429 +1,289 @@
 'use client';
 
-import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { HotelCardDynamic } from '@/components/hotel/HotelCardDynamic';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { FilterPanel, SearchFilters } from '@/components/search/FilterPanel';
-import { SortDropdown, SortOption } from '@/components/search/SortDropdown';
-import { GoogleMapView } from '@/components/search/GoogleMapView';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { HotelListCard } from '@/components/hotel/HotelListCard';
+import { FilterPanel } from '@/components/search/FilterPanel';
+import { SortDropdown } from '@/components/search/SortDropdown';
+import { SearchBarCompact } from '@/components/hotel/SearchBarCompact';
 import { SupplierHotelSummary } from '@/lib/suppliers/types';
 
-export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
-
-const toCardProps = (hotel: SupplierHotelSummary) => {
-  const tags = Array.isArray(hotel.tags)
-    ? hotel.tags.filter((tag): tag is string => typeof tag === 'string')
-    : undefined;
-
-  return {
-    id: hotel.id,
-    slug: hotel.slug,
-    name: hotel.name,
-    location: hotel.location,
-    rating: hotel.rating,
-    startingRate: hotel.startingRate,
-    currency: hotel.currency,
-    image: hotel.primaryImage ?? hotel.heroImage,
-    highlight: hotel.minRatePlan?.name,
-    badge: hotel.categories[0]?.replace(/-/g, ' '),
-    tags,
-    // Urgency & free cancellation indicators
-    availableRooms: hotel.minRatePlan?.availableRooms,
-    isRefundable: hotel.minRatePlan?.isRefundable,
-  };
-};
-
-const DEFAULT_FILTERS: SearchFilters = {
-  priceRange: [0, 2000],
-  starRating: [],
-  amenities: [],
-  boardTypes: [],
-  refundableOnly: false,
-  payAtHotel: false,
-};
-
-function SearchPageInner() {
+export default function SearchPage() {
   const searchParams = useSearchParams();
-  const router = useRouter();
-  const destination = searchParams.get('destination') ?? '';
-  const checkIn = searchParams.get('checkIn') ?? '';
-  const checkOut = searchParams.get('checkOut') ?? '';
-  // Support both 'adults' (from search bar) and 'guests' (legacy) 
-  const adults = parseInt(searchParams.get('adults') ?? searchParams.get('guests') ?? '2', 10);
-  const children = parseInt(searchParams.get('children') ?? '0', 10);
-  const rooms = parseInt(searchParams.get('rooms') ?? '1', 10);
+  const destination = searchParams.get('destination') || '';
+  const checkIn = searchParams.get('checkIn') || '';
+  const checkOut = searchParams.get('checkOut') || '';
+  const adults = parseInt(searchParams.get('adults') || '2');
+  const children = parseInt(searchParams.get('children') || '0');
+  const rooms = parseInt(searchParams.get('rooms') || '1');
 
   const [hotels, setHotels] = useState<SupplierHotelSummary[]>([]);
-  const [filters, setFilters] = useState<SearchFilters>(DEFAULT_FILTERS);
-  const [sortBy, setSortBy] = useState<SortOption>('recommended');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'map'>('grid');
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [sortBy, setSortBy] = useState('recommended');
+  
+  // Filters
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
+  const [starRatings, setStarRatings] = useState<number[]>([]);
+  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
 
-  // Calculate price histogram from results
-  const priceHistogram = useMemo(() => {
-    if (hotels.length === 0) return [];
-    const buckets = 20;
-    const histogram = new Array(buckets).fill(0);
-    const maxPrice = 2000;
+  // Fetch hotels
+  useEffect(() => {
+    async function fetchHotels() {
+      if (!destination) {
+        setLoading(false);
+        return;
+      }
 
-    hotels.forEach((hotel) => {
-      const price = hotel.startingRate ?? 0;
-      const bucketIndex = Math.min(Math.floor((price / maxPrice) * buckets), buckets - 1);
-      histogram[bucketIndex]++;
-    });
+      setLoading(true);
+      setError(null);
 
-    return histogram;
-  }, [hotels]);
+      try {
+        const params = new URLSearchParams();
+        params.set('destination', destination);
+        if (checkIn) params.set('checkIn', checkIn);
+        if (checkOut) params.set('checkOut', checkOut);
+        params.set('adults', adults.toString());
+        params.set('rooms', rooms.toString());
 
-  // Filtered and sorted hotels
+        const res = await fetch(`/api/hotels/search?${params.toString()}`);
+        
+        // Handle empty or error responses
+        const text = await res.text();
+        if (!text) {
+          setHotels([]);
+          return;
+        }
+
+        const data = JSON.parse(text);
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to search hotels');
+        }
+
+        setHotels(data.hotels || []);
+      } catch (err) {
+        console.error('Search error:', err);
+        setError(err instanceof Error ? err.message : 'Failed to search hotels');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchHotels();
+  }, [destination, checkIn, checkOut, adults, rooms]);
+
+  // Filter and sort hotels
   const filteredHotels = useMemo(() => {
     let result = [...hotels];
 
     // Apply price filter
-    result = result.filter((hotel) => {
-      const price = hotel.startingRate ?? 0;
-      return price >= filters.priceRange[0] && price <= filters.priceRange[1];
+    result = result.filter(h => {
+      const price = h.startingRate || 0;
+      return price >= priceRange[0] && price <= priceRange[1];
     });
 
     // Apply star rating filter
-    if (filters.starRating.length > 0) {
-      result = result.filter((hotel) => filters.starRating.includes(hotel.rating ?? 0));
-    }
-
-    // Apply refundable filter (placeholder - requires supplier data enhancement)
-    // TODO: Add isRefundable to minRatePlan in SupplierHotelSummary type
-    if (filters.refundableOnly) {
-      // For now, keep all hotels when refundable filter is on
-      // This will be properly implemented when we have refundability data
+    if (starRatings.length > 0) {
+      result = result.filter(h => starRatings.includes(Math.floor(h.rating || 0)));
     }
 
     // Apply sorting
     switch (sortBy) {
-      case 'price-asc':
-        result.sort((a, b) => (a.startingRate ?? 0) - (b.startingRate ?? 0));
+      case 'price-low':
+        result.sort((a, b) => (a.startingRate || 0) - (b.startingRate || 0));
         break;
-      case 'price-desc':
-        result.sort((a, b) => (b.startingRate ?? 0) - (a.startingRate ?? 0));
+      case 'price-high':
+        result.sort((a, b) => (b.startingRate || 0) - (a.startingRate || 0));
         break;
-      case 'rating-desc':
-        result.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+      case 'rating':
+        result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
         break;
-      case 'recommended':
       default:
-        // Keep original order (by relevance from API)
+        // Keep recommended order
         break;
     }
 
     return result;
-  }, [hotels, filters, sortBy]);
-
-  // Store search context in sessionStorage for back navigation
-  useEffect(() => {
-    if (destination) {
-      sessionStorage.setItem('lastSearchDestination', destination);
-    }
-  }, [destination]);
-
-  // Restore destination from sessionStorage if not in URL
-  useEffect(() => {
-    if (!destination) {
-      const savedDestination = sessionStorage.getItem('lastSearchDestination');
-      if (savedDestination) {
-        router.replace(`/search?destination=${encodeURIComponent(savedDestination)}`);
-      }
-    }
-  }, [destination, router]);
-
-  const fetchHotels = useCallback(async () => {
-    // Don't fetch if no destination - wait for redirect
-    if (!destination) {
-      const savedDestination = sessionStorage.getItem('lastSearchDestination');
-      if (savedDestination) {
-        // Will be redirected, don't fetch yet
-        return;
-      }
-      // No saved destination, default to London
-      router.replace('/search?destination=London');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch('/api/hotels/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          destination,
-          checkIn: checkIn || undefined,
-          checkOut: checkOut || undefined,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch hotels');
-      }
-
-      const data = await response.json();
-      setHotels(data.hotels ?? []);
-    } catch (err) {
-      console.error(err);
-      setError('Unable to load hotels. Please try again shortly.');
-    } finally {
-      setLoading(false);
-    }
-  }, [destination, checkIn, checkOut, router]);
-
-  useEffect(() => {
-    fetchHotels();
-  }, [fetchHotels]);
-
-  const handleClearFilters = () => {
-    setFilters(DEFAULT_FILTERS);
-  };
+  }, [hotels, priceRange, starRatings, sortBy]);
 
   return (
-    <main className="relative min-h-screen pb-32 md:pb-24 pt-24">
-      <div className="max-w-[1600px] mx-auto px-4 md:px-6">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 drop-shadow-2xl">
-            {destination ? `Hotels in ${destination}` : 'Search Results'}
-          </h1>
-          {checkIn && checkOut && (
-            <p className="text-white/70">
-              {new Date(checkIn).toLocaleDateString('en-GB', { 
-                day: 'numeric', 
-                month: 'short' 
-              })} - {new Date(checkOut).toLocaleDateString('en-GB', { 
-                day: 'numeric', 
-                month: 'short',
-                year: 'numeric'
-              })}
-            </p>
-          )}
-        </div>
-
-        {/* Action Bar */}
-        <div className="flex items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-2">
-            {/* Mobile Filter Button */}
-            <button
-              onClick={() => setShowMobileFilters(true)}
-              className="lg:hidden flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-white"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-              </svg>
-              <span>Filters</span>
-            </button>
-
-            {/* View Mode Toggle */}
-            <div className="hidden md:flex items-center bg-white/10 backdrop-blur-md border border-white/20 rounded-xl overflow-hidden">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 ${viewMode === 'grid' ? 'bg-white/20' : ''}`}
-                title="Grid view"
-              >
-                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 ${viewMode === 'list' ? 'bg-white/20' : ''}`}
-                title="List view"
-              >
-                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setViewMode('map')}
-                className={`p-2 ${viewMode === 'map' ? 'bg-white/20' : ''}`}
-                title="Map view"
-              >
-                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          {/* Sort Dropdown */}
-          <SortDropdown value={sortBy} onChange={setSortBy} />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Filters Sidebar - Desktop */}
-          <div className="hidden lg:block lg:col-span-1">
-            <FilterPanel
-              filters={filters}
-              onChange={setFilters}
-              priceHistogram={priceHistogram}
-              resultsCount={filteredHotels.length}
-              onClearAll={handleClearFilters}
-            />
-          </div>
-
-          {/* Results */}
-          <div className="lg:col-span-3">
-            {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="animate-pulse">
-                    <div className="bg-white/10 rounded-2xl h-64" />
-                  </div>
-                ))}
-              </div>
-            ) : error ? (
-              <GlassCard>
-                <div className="text-center py-12">
-                  <p className="text-xl text-white mb-4">Something went wrong</p>
-                  <p className="text-white/70 mb-6">{error}</p>
-                  <button
-                    onClick={fetchHotels}
-                    className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-semibold transition-colors"
-                  >
-                    Try Again
-                  </button>
-                </div>
-              </GlassCard>
-            ) : filteredHotels.length === 0 ? (
-              <GlassCard>
-                <div className="text-center py-12">
-                  <svg
-                    className="w-20 h-20 mx-auto mb-4 text-white/40"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  <p className="text-xl text-white mb-4">No hotels found</p>
-                  <p className="text-white/70 mb-6">
-                    Try adjusting your filters or search for a different destination
-                  </p>
-                  <button
-                    onClick={handleClearFilters}
-                    className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-semibold transition-colors"
-                  >
-                    Clear Filters
-                  </button>
-                </div>
-              </GlassCard>
-            ) : viewMode === 'map' ? (
-              <>
-                {/* Results Count */}
-                <p className="text-white/80 mb-4">
-                  <span className="font-bold text-white">{filteredHotels.length}</span> hotels found
-                </p>
-
-                {/* Map View */}
-                <GoogleMapView
-                  hotels={filteredHotels.map(h => ({
-                    id: h.id,
-                    slug: h.slug,
-                    name: h.name,
-                    location: h.location,
-                    rating: h.rating,
-                    startingRate: h.startingRate,
-                    currency: h.currency,
-                    image: h.primaryImage ?? h.heroImage,
-                  }))}
-                />
-              </>
-            ) : (
-              <>
-                {/* Results Count */}
-                <p className="text-white/80 mb-4 lg:hidden">
-                  <span className="font-bold text-white">{filteredHotels.length}</span> hotels found
-                </p>
-
-                {/* Hotel Grid */}
-                <div
-                  className={
-                    viewMode === 'list'
-                      ? 'space-y-4'
-                      : 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6'
-                  }
-                >
-                  {filteredHotels.map((hotel) => (
-                    <HotelCardDynamic
-                      key={hotel.id}
-                      {...toCardProps(hotel)}
-                      layout={viewMode === 'list' ? 'horizontal' : 'vertical'}
-                      checkIn={checkIn}
-                      checkOut={checkOut}
-                      adults={adults}
-                      children={children}
-                      rooms={rooms}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+    <div className="min-h-screen bg-[#f5f5f5]">
+      {/* Search Bar Header */}
+      <div className="bg-[#5DADE2] py-4">
+        <div className="max-w-7xl mx-auto px-4">
+          <SearchBarCompact
+            initialDestination={destination}
+            initialCheckIn={checkIn}
+            initialCheckOut={checkOut}
+            initialAdults={adults}
+            initialChildren={children}
+            initialRooms={rooms}
+          />
         </div>
       </div>
 
-      {/* Mobile Filter Modal */}
-      {showMobileFilters && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowMobileFilters(false)}
-          />
-          <div className="absolute inset-y-0 right-0 w-full max-w-md bg-slate-900/95 backdrop-blur-md overflow-y-auto">
-            <div className="sticky top-0 flex items-center justify-between p-4 bg-slate-900/95 border-b border-white/10">
-              <h2 className="text-lg font-bold text-white">Filters</h2>
-              <button
-                onClick={() => setShowMobileFilters(false)}
-                className="p-2 text-white/70 hover:text-white"
-              >
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="p-4">
-              <FilterPanel
-                filters={filters}
-                onChange={setFilters}
-                priceHistogram={priceHistogram}
-                resultsCount={filteredHotels.length}
-                onClearAll={handleClearFilters}
-              />
-            </div>
-            <div className="sticky bottom-0 p-4 bg-slate-900/95 border-t border-white/10">
-              <button
-                onClick={() => setShowMobileFilters(false)}
-                className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-semibold transition-colors"
-              >
-                Show {filteredHotels.length} results
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </main>
-  );
-}
+      {/* Breadcrumb */}
+      <div className="max-w-7xl mx-auto px-4 py-3">
+        <nav className="breadcrumb">
+          <Link href="/">Home</Link>
+          <span>›</span>
+          <Link href="#">United Kingdom</Link>
+          <span>›</span>
+          <span className="text-gray-500">{destination || 'Search results'}</span>
+        </nav>
+      </div>
 
-export default function SearchPage() {
-  return (
-    <Suspense
-      fallback={
-        <main className="relative min-h-screen flex items-center justify-center pb-32 md:pb-24 pt-24">
-          <div className="text-white/80 text-lg">Loading search…</div>
-        </main>
-      }
-    >
-      <SearchPageInner />
-    </Suspense>
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 pb-12">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Left Sidebar - Filters */}
+          <aside className="w-full lg:w-72 flex-shrink-0">
+            {/* Map Preview */}
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-4">
+              <div className="aspect-[4/3] bg-gray-100 relative">
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center">
+                    <svg className="w-12 h-12 text-gray-300 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                    </svg>
+                    <p className="text-sm text-gray-500">Map view</p>
+                  </div>
+                </div>
+              </div>
+              <button className="w-full py-3 bg-[#5DADE2] text-white font-semibold hover:bg-[#3498DB] transition-colors flex items-center justify-center gap-2">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Show on map
+              </button>
+            </div>
+
+            {/* Filters */}
+            <FilterPanel
+              priceRange={priceRange}
+              onPriceRangeChange={setPriceRange}
+              starRatings={starRatings}
+              onStarRatingsChange={setStarRatings}
+              selectedFilters={selectedFilters}
+              onFiltersChange={setSelectedFilters}
+            />
+          </aside>
+
+          {/* Right Content - Results */}
+          <main className="flex-1 min-w-0">
+            {/* Results Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">
+                  {destination}: {filteredHotels.length} properties found
+                </h1>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {/* Sort */}
+                <SortDropdown value={sortBy} onChange={setSortBy} />
+
+                {/* View Toggle */}
+                <div className="flex border border-gray-200 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`px-3 py-2 text-sm ${viewMode === 'list' ? 'bg-gray-100 text-gray-900' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                  >
+                    List
+                  </button>
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`px-3 py-2 text-sm ${viewMode === 'grid' ? 'bg-gray-100 text-gray-900' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                  >
+                    Grid
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Info Banner */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4 flex items-start gap-3">
+              <svg className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-sm text-gray-600">
+                Prices shown include all taxes and fees. <a href="#" className="text-[#5DADE2] hover:underline">Find out more.</a>
+              </p>
+            </div>
+
+            {/* Loading State */}
+            {loading && (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="bg-white rounded-lg border border-gray-200 p-4 animate-pulse">
+                    <div className="flex gap-4">
+                      <div className="w-56 aspect-square bg-gray-200 rounded" />
+                      <div className="flex-1 space-y-3">
+                        <div className="h-6 bg-gray-200 rounded w-2/3" />
+                        <div className="h-4 bg-gray-200 rounded w-1/3" />
+                        <div className="h-4 bg-gray-200 rounded w-1/2" />
+                        <div className="h-10 bg-gray-200 rounded w-32 ml-auto mt-4" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                <svg className="w-12 h-12 text-red-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-red-600 mb-4">{error}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                  Try Again
+                </button>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!loading && !error && filteredHotels.length === 0 && (
+              <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+                <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No properties found</h3>
+                <p className="text-gray-500 mb-6">Try adjusting your search or filters to find what you're looking for.</p>
+                <Link
+                  href="/"
+                  className="inline-block px-6 py-3 bg-[#5DADE2] text-white font-semibold rounded-lg hover:bg-[#3498DB]"
+                >
+                  Search again
+                </Link>
+              </div>
+            )}
+
+            {/* Results */}
+            {!loading && !error && filteredHotels.length > 0 && (
+              <div>
+                {filteredHotels.map((hotel) => (
+                  <HotelListCard
+                    key={hotel.id}
+                    hotel={hotel}
+                    checkIn={checkIn}
+                    checkOut={checkOut}
+                    guests={adults + children}
+                  />
+                ))}
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
+    </div>
   );
 }

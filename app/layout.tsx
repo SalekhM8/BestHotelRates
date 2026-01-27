@@ -1,9 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Header } from '@/components/layout/Header';
-import { BottomNav } from '@/components/layout/BottomNav';
 import { Footer } from '@/components/layout/Footer';
-import { VideoBackground } from '@/components/layout/VideoBackground';
+import { BottomNav } from '@/components/layout/BottomNav';
 import { SessionProvider } from '@/components/auth/SessionProvider';
 import { CookieConsent } from '@/components/ui/CookieConsent';
 import { GoogleAnalytics, SentryInit } from '@/components/analytics/Analytics';
@@ -39,15 +38,16 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
-        <meta name="theme-color" content="#0f172a" />
+        <meta name="theme-color" content="#5DADE2" />
       </head>
-      <body>
+      <body className="min-h-screen flex flex-col bg-white">
         <GoogleAnalytics />
         <SentryInit />
         <SessionProvider>
-          <VideoBackground />
           <Header />
-          {children}
+          <main className="flex-1">
+            {children}
+          </main>
           <Footer />
           <BottomNav />
           <CookieConsent />

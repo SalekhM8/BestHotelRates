@@ -286,3 +286,4 @@ export function GoogleMapView({ hotels, center }: Props) {
   );
 }
 
+

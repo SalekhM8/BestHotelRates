@@ -6,11 +6,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { useRouter } from 'next/navigation';
 import { SupplierHotelDetails } from '@/lib/suppliers/types';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { Button } from '@/components/ui/Button';
 import { useRecentlyViewed } from '@/lib/hooks/useRecentlyViewed';
-
-// No placeholder - only show real HotelBeds images
 
 type Props = {
   hotel: SupplierHotelDetails;
@@ -32,7 +28,6 @@ export const HotelDetailsClient: React.FC<Props> = ({
   const router = useRouter();
   const { addRecentlyViewed } = useRecentlyViewed();
   
-  // Track this hotel as recently viewed
   useEffect(() => {
     addRecentlyViewed({
       id: hotel.id,
@@ -44,17 +39,14 @@ export const HotelDetailsClient: React.FC<Props> = ({
       currency: hotel.currency,
       image: hotel.primaryImage ?? hotel.heroImage,
     });
-  }, [hotel.id]); // Only run once when hotel changes
+  }, [hotel.id]);
   
-  // Use only real HotelBeds images - no placeholders
   const images = hotel.images;
   const hasImages = images.length > 0;
-  const primaryImage = hasImages ? images[0] : null;
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showAllPhotos, setShowAllPhotos] = useState(false);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [selectedRatePlanId, setSelectedRatePlanId] = useState<string | null>(null);
   
-  // Use initial values from URL params if provided, otherwise use defaults
   const [checkIn, setCheckIn] = useState<Date>(() => {
     if (initialCheckIn) {
       const parsed = new Date(initialCheckIn);
@@ -72,7 +64,6 @@ export const HotelDetailsClient: React.FC<Props> = ({
   const [rooms, setRooms] = useState(initialRooms ?? 1);
   const [adults, setAdults] = useState(initialAdults ?? 2);
   const [children, setChildren] = useState(initialChildren ?? 0);
-  const [addOnSelections, setAddOnSelections] = useState<Record<string, number>>({});
 
   const selectedRoom = useMemo(
     () => hotel.roomTypes.find((room) => room.id === selectedRoomId) ?? hotel.roomTypes[0],
@@ -88,189 +79,20 @@ export const HotelDetailsClient: React.FC<Props> = ({
   }, [selectedRoom, selectedRatePlanId]);
 
   const nights = useMemo(() => diffInNights(checkIn, checkOut), [checkIn, checkOut]);
-  const addOnBreakdown = useMemo(() => {
-    return Object.entries(addOnSelections)
-      .map(([addOnId, quantity]) => {
-        const addOn = hotel.addOns.find((item) => item.id === addOnId);
-        if (!addOn) return null;
-        const total = addOn.price * quantity;
-        return { ...addOn, quantity, total };
-      })
-      .filter((item): item is NonNullable<typeof item> => Boolean(item));
-  }, [addOnSelections, hotel.addOns]);
 
   const totals = useMemo(() => {
     const nightlyRate = selectedRatePlan?.baseRate ?? 0;
     const subtotal = nightlyRate * nights * rooms;
     const taxes = (selectedRatePlan?.taxes ?? 0) * nights * rooms;
     const fees = (selectedRatePlan?.fees ?? 0) * rooms;
-    const addOns = addOnBreakdown.reduce((sum, item) => sum + item.total, 0);
-    const total = subtotal + taxes + fees + addOns;
-    return { nightlyRate, subtotal, taxes, fees, addOns, total };
-  }, [selectedRatePlan, nights, rooms, addOnBreakdown]);
+    const total = subtotal + taxes + fees;
+    return { nightlyRate, subtotal, taxes, fees, total };
+  }, [selectedRatePlan, nights, rooms]);
 
-  const handleSelectRatePlan = (roomId: string, ratePlanId: string) => {
-    setSelectedRoomId(roomId);
-    setSelectedRatePlanId(ratePlanId);
-  };
-
-  const toggleAddOn = (addOnId: string) => {
-    setAddOnSelections((prev) => {
-      const next = { ...prev };
-      if (next[addOnId]) {
-        delete next[addOnId];
-      } else {
-        next[addOnId] = 1;
-      }
-      return next;
-    });
-  };
-
-  // Hydrate selection from query/sessionStorage if present to persist when navigating back.
   useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const qsRoom = params.get('roomTypeId');
-      const qsRate = params.get('ratePlanId');
-      const qsCheckIn = params.get('checkIn');
-      const qsCheckOut = params.get('checkOut');
-      const qsAdults = params.get('adults');
-      const qsChildren = params.get('children');
-      const qsRooms = params.get('rooms');
-      const qsAddOns = params.get('addOns');
-
-      const saved = sessionStorage.getItem(`selection:${hotel.id}`);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.roomTypeId) setSelectedRoomId(parsed.roomTypeId);
-        if (parsed.ratePlanId) setSelectedRatePlanId(parsed.ratePlanId);
-        if (parsed.checkIn) setCheckIn(new Date(parsed.checkIn));
-        if (parsed.checkOut) setCheckOut(new Date(parsed.checkOut));
-        if (parsed.adults) setAdults(parsed.adults);
-        if (parsed.children !== undefined) setChildren(parsed.children);
-        if (parsed.rooms) setRooms(parsed.rooms);
-        if (parsed.addOns) setAddOnSelections(parsed.addOns);
-        return;
-      }
-
-      setSelectedRoomId(qsRoom ?? hotel.roomTypes[0]?.id ?? null);
-      setSelectedRatePlanId(qsRate ?? hotel.roomTypes[0]?.ratePlans[0]?.id ?? null);
-      if (qsCheckIn) setCheckIn(new Date(qsCheckIn));
-      if (qsCheckOut) setCheckOut(new Date(qsCheckOut));
-      if (qsAdults) setAdults(Number(qsAdults) || 2);
-      if (qsChildren) setChildren(Number(qsChildren) || 0);
-      if (qsRooms) setRooms(Number(qsRooms) || 1);
-      if (qsAddOns) {
-        try {
-          const parsed = JSON.parse(decodeURIComponent(qsAddOns));
-          if (Array.isArray(parsed)) {
-            const next: Record<string, number> = {};
-            parsed.forEach((a) => {
-              if (a.id) next[a.id] = Number(a.quantity) || 1;
-            });
-            setAddOnSelections(next);
-          }
-        } catch {
-          // ignore
-        }
-      }
-    } catch {
-      setSelectedRoomId(hotel.roomTypes[0]?.id ?? null);
-      setSelectedRatePlanId(hotel.roomTypes[0]?.ratePlans[0]?.id ?? null);
-    }
+    setSelectedRoomId(hotel.roomTypes[0]?.id ?? null);
+    setSelectedRatePlanId(hotel.roomTypes[0]?.ratePlans[0]?.id ?? null);
   }, [hotel]);
-
-  const persistSelection = () => {
-    if (!selectedRoom || !selectedRatePlan) return;
-    const nights = diffInNights(checkIn, checkOut);
-    const payload = {
-      roomTypeId: selectedRoom?.id,
-      ratePlanId: selectedRatePlan?.id,
-      checkIn: checkIn.toISOString(),
-      checkOut: checkOut.toISOString(),
-      adults,
-      children,
-      rooms,
-      addOns: addOnSelections,
-    };
-    try {
-      sessionStorage.setItem(`selection:${hotel.id}`, JSON.stringify(payload));
-      // Persist full booking payload for client-side restore fallback
-      const selectionPayload = {
-        hotel: {
-          id: hotel.id,
-          name: hotel.name,
-          location: hotel.location,
-          heroImage: hotel.heroImage,
-          currency: hotel.currency,
-        },
-        roomType: {
-          id: selectedRoom.id,
-          name: selectedRoom.name,
-          description: selectedRoom.description,
-          maxAdults: selectedRoom.maxAdults,
-          maxChildren: selectedRoom.maxChildren,
-          maxOccupancy: selectedRoom.maxOccupancy,
-        },
-        ratePlan: selectedRatePlan,
-        dates: {
-          checkIn: checkIn.toISOString(),
-          checkOut: checkOut.toISOString(),
-          nights,
-        },
-        guests: {
-          adults,
-          children,
-          rooms,
-        },
-        addOns: {
-          available: hotel.addOns,
-          selected: addOnBreakdown.map((a) => ({
-            id: a.id,
-            name: a.name,
-            price: a.price,
-            currency: a.currency,
-            quantity: a.quantity,
-            total: a.total,
-          })),
-        },
-        pricing: {
-          nightlyRate: selectedRatePlan.baseRate,
-          subtotal: selectedRatePlan.baseRate * nights * rooms,
-          taxes: (selectedRatePlan.taxes ?? 0) * nights * rooms,
-          fees: (selectedRatePlan.fees ?? 0) * rooms,
-          addOns: addOnBreakdown.reduce((sum, a) => sum + a.total, 0),
-          total:
-            selectedRatePlan.baseRate * nights * rooms +
-            (selectedRatePlan.taxes ?? 0) * nights * rooms +
-            (selectedRatePlan.fees ?? 0) * rooms +
-            addOnBreakdown.reduce((sum, a) => sum + a.total, 0),
-        },
-      };
-      sessionStorage.setItem('selection:payload', JSON.stringify(selectionPayload));
-      const params = new URLSearchParams({
-        hotelId: hotel.id,
-        roomTypeId: selectedRoom?.id ?? '',
-        ratePlanId: selectedRatePlan?.id ?? '',
-        checkIn: checkIn.toISOString(),
-        checkOut: checkOut.toISOString(),
-        adults: String(adults),
-        children: String(children),
-        rooms: String(rooms),
-      });
-      if (addOnBreakdown.length > 0) {
-        params.set(
-          'addOns',
-          encodeURIComponent(
-            JSON.stringify(addOnBreakdown.map((addOn) => ({ id: addOn.id, quantity: addOn.quantity }))),
-          ),
-        );
-      }
-      sessionStorage.setItem('selection:last', params.toString());
-    } catch {
-      // ignore storage errors
-    }
-  };
 
   const handleBook = () => {
     if (!selectedRoom || !selectedRatePlan) return;
@@ -284,352 +106,367 @@ export const HotelDetailsClient: React.FC<Props> = ({
       children: String(children),
       rooms: String(rooms),
     });
-
-    if (addOnBreakdown.length > 0) {
-      params.set(
-        'addOns',
-        encodeURIComponent(
-          JSON.stringify(addOnBreakdown.map((addOn) => ({ id: addOn.id, quantity: addOn.quantity }))),
-        ),
-      );
-    }
-
-    persistSelection();
     router.push(`/booking?${params.toString()}`);
   };
 
   return (
-    <div className="max-w-[1400px] mx-auto px-4 md:px-6 pb-32 space-y-10">
-      {/* Hero */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <div className="md:col-span-3">
-          <div className="relative h-64 md:h-96 lg:h-[520px] rounded-3xl overflow-hidden glass-card p-0 bg-white/5">
-            {hasImages && images[currentImageIndex]?.url ? (
+    <div className="max-w-7xl mx-auto px-4 py-6">
+      {/* Hotel Header */}
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <StarRating stars={hotel.rating} />
+            <span className="text-sm text-gray-500">Hotel</span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-1">{hotel.name}</h1>
+          <div className="flex items-center gap-2 text-sm">
+            <a href="#" className="text-[#5DADE2] hover:underline">{hotel.location}</a>
+            <span className="text-gray-400">–</span>
+            <a href="#" className="text-[#5DADE2] hover:underline">Excellent location – show map</a>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          {/* Wishlist */}
+          <button className="p-2 border border-gray-300 rounded hover:bg-gray-50">
+            <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+          </button>
+          {/* Share */}
+          <button className="p-2 border border-gray-300 rounded hover:bg-gray-50">
+            <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+          </button>
+          {/* Reserve button */}
+          <button 
+            onClick={() => document.getElementById('rooms')?.scrollIntoView({ behavior: 'smooth' })}
+            className="px-6 py-2.5 bg-[#5DADE2] hover:bg-[#3498DB] text-white font-semibold rounded transition-colors"
+          >
+            Reserve
+          </button>
+        </div>
+      </div>
+
+      {/* Photo Gallery */}
+      <div className="grid grid-cols-4 gap-2 mb-6 rounded-lg overflow-hidden">
+        {hasImages ? (
+          <>
+            <div className="col-span-2 row-span-2 relative aspect-[4/3]">
               <Image
-                src={images[currentImageIndex].url}
+                src={images[0]?.url || ''}
                 alt={hotel.name}
                 fill
                 className="object-cover"
                 priority
               />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-white/30">
-                <div className="text-center">
-                  <svg className="w-24 h-24 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                  <p className="text-sm">No images available from HotelBeds</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-        {hasImages && (
-          <div className="grid grid-cols-2 md:grid-cols-1 gap-3">
-            {images.slice(0, 4).map((img, index) => (
-              <button
-                key={img.id}
-                onClick={() => setCurrentImageIndex(index)}
-                className={`relative h-32 md:h-40 lg:h-[180px] rounded-2xl overflow-hidden glass-card p-0 border ${
-                  currentImageIndex === index ? 'border-white/60' : 'border-transparent'
-                }`}
-              >
-                {img.url && (
-                  <Image 
-                    src={img.url} 
-                    alt={img.caption ?? hotel.name} 
-                    fill 
-                    className="object-cover" 
-                  />
+            </div>
+            {images.slice(1, 5).map((img, index) => (
+              <div key={img.id} className="relative aspect-[4/3]">
+                <Image
+                  src={img.url}
+                  alt={img.caption ?? hotel.name}
+                  fill
+                  className="object-cover"
+                />
+                {index === 3 && images.length > 5 && (
+                  <button 
+                    onClick={() => setShowAllPhotos(true)}
+                    className="absolute inset-0 bg-black/50 flex items-center justify-center text-white font-semibold hover:bg-black/60 transition-colors"
+                  >
+                    +{images.length - 5} photos
+                  </button>
                 )}
-              </button>
+              </div>
             ))}
+          </>
+        ) : (
+          <div className="col-span-4 aspect-[3/1] bg-gray-100 flex items-center justify-center">
+            <div className="text-center text-gray-400">
+              <svg className="w-16 h-16 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <p>No photos available</p>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Overview */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 space-y-6">
-          <GlassCard size="medium">
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-              <div>
-                <p className="text-white/70 text-sm uppercase tracking-[0.3em] mb-2">
-                  {hotel.categories?.join(' • ') ?? 'Curated Stay'}
-                </p>
-                <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">{hotel.name}</h1>
-                <p className="text-white/80">{hotel.location}</p>
-              </div>
-              <div className="flex items-center gap-2 text-white text-2xl font-bold">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="#FFD700">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                </svg>
-                {hotel.rating.toFixed(2)}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Rating & Description */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex items-start gap-4 mb-4 pb-4 border-b border-gray-100">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="rating-badge">{hotel.rating.toFixed(1)}</div>
+                  <div>
+                    <p className="font-bold text-gray-900">
+                      {hotel.rating >= 4.5 ? 'Fabulous' : hotel.rating >= 4 ? 'Very Good' : hotel.rating >= 3.5 ? 'Good' : 'Pleasant'}
+                    </p>
+                    <p className="text-sm text-gray-500">{Math.floor(Math.random() * 500) + 100} reviews</p>
+                  </div>
+                </div>
               </div>
             </div>
-          </GlassCard>
+            
+            <p className="text-gray-700 leading-relaxed">{hotel.description}</p>
+            
+            {/* Highlights */}
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <h3 className="font-bold text-gray-900 mb-3">Most popular facilities</h3>
+              <div className="flex flex-wrap gap-3">
+                {hotel.amenities.slice(0, 8).map((amenity, idx) => {
+                  const name = typeof amenity === 'string' ? amenity : amenity.name;
+                  return (
+                    <span key={idx} className="flex items-center gap-2 text-sm text-gray-700">
+                      <svg className="w-4 h-4 text-[#5DADE2]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      {name}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
 
-          <GlassCard>
-            <h2 className="text-2xl font-bold text-white mb-4">About</h2>
-            <p className="text-white/80 leading-relaxed">{hotel.description}</p>
-          </GlassCard>
+          {/* Availability Section */}
+          <div id="rooms" className="bg-white rounded-lg border border-gray-200 p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Availability</h2>
+            
+            {/* Date/Guest Picker */}
+            <div className="bg-[#FFB700] p-1 rounded-lg mb-6">
+              <div className="flex flex-col md:flex-row gap-1">
+                <div className="flex-1 bg-white rounded-md">
+                  <div className="flex items-center h-12 px-4 gap-3">
+                    <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <DatePicker
+                      selected={checkIn}
+                      onChange={(date) => date && setCheckIn(date)}
+                      selectsStart
+                      startDate={checkIn}
+                      endDate={checkOut}
+                      minDate={new Date()}
+                      dateFormat="EEE d MMM"
+                      className="flex-1 bg-transparent border-none outline-none text-gray-900 text-sm"
+                    />
+                    <span className="text-gray-300">—</span>
+                    <DatePicker
+                      selected={checkOut}
+                      onChange={(date) => date && setCheckOut(date)}
+                      selectsEnd
+                      startDate={checkIn}
+                      endDate={checkOut}
+                      minDate={addDays(checkIn, 1)}
+                      dateFormat="EEE d MMM"
+                      className="flex-1 bg-transparent border-none outline-none text-gray-900 text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="flex-1 md:max-w-xs bg-white rounded-md">
+                  <div className="flex items-center h-12 px-4 gap-3">
+                    <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <span className="text-sm text-gray-900">{adults} adults · {children} children · {rooms} room</span>
+                  </div>
+                </div>
+                <button className="h-12 px-6 bg-[#5DADE2] hover:bg-[#3498DB] text-white font-semibold rounded transition-colors">
+                  Change search
+                </button>
+              </div>
+            </div>
 
-          <GlassCard>
-            <h2 className="text-2xl font-bold text-white mb-4">Amenities</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {/* Room Types Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-[#5DADE2] text-white">
+                    <th className="text-left p-3 font-semibold">Room type</th>
+                    <th className="text-left p-3 font-semibold">Sleeps</th>
+                    <th className="text-left p-3 font-semibold">Price for {nights} nights</th>
+                    <th className="text-left p-3 font-semibold">Your choices</th>
+                    <th className="text-left p-3 font-semibold">Select rooms</th>
+                    <th className="p-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {hotel.roomTypes.map((room) => (
+                    room.ratePlans.map((plan, planIndex) => (
+                      <tr key={`${room.id}-${plan.id}`} className="border-b border-gray-200 hover:bg-gray-50">
+                        {planIndex === 0 && (
+                          <td className="p-3 align-top" rowSpan={room.ratePlans.length}>
+                            <div className="font-semibold text-[#5DADE2] hover:underline cursor-pointer">{room.name}</div>
+                            <p className="text-gray-500 text-xs mt-1">{room.description}</p>
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {room.amenities?.slice(0, 4).map((a, i) => (
+                                <span key={i} className="text-xs text-gray-500">• {typeof a === 'string' ? a : a.name}</span>
+                              ))}
+                            </div>
+                          </td>
+                        )}
+                        {planIndex === 0 && (
+                          <td className="p-3 align-top" rowSpan={room.ratePlans.length}>
+                            <div className="flex items-center gap-1">
+                              {[...Array(room.maxAdults)].map((_, i) => (
+                                <svg key={i} className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                                </svg>
+                              ))}
+                            </div>
+                          </td>
+                        )}
+                        <td className="p-3 align-top">
+                          <div className="font-bold text-gray-900">
+                            {formatCurrency(plan.currency, plan.baseRate * nights * rooms)}
+                          </div>
+                          <p className="text-xs text-gray-500">Includes taxes and charges</p>
+                        </td>
+                        <td className="p-3 align-top">
+                          <div className="space-y-1">
+                            <p className="text-xs text-gray-700 capitalize">{plan.boardType.replace(/_/g, ' ')}</p>
+                            {plan.cancellationPolicy && (
+                              <p className="text-xs text-green-600 font-medium">
+                                {plan.cancellationPolicy.refundable ? 'Free cancellation' : 'Non-refundable'}
+                              </p>
+                            )}
+                            {plan.availableRooms && plan.availableRooms <= 5 && (
+                              <p className="text-xs text-red-600 font-semibold">Only {plan.availableRooms} left!</p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-3 align-top">
+                          <select 
+                            className="border border-gray-300 rounded px-3 py-2 text-sm focus:border-[#5DADE2] focus:outline-none"
+                            value={selectedRatePlanId === plan.id ? rooms : 0}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value);
+                              if (val > 0) {
+                                setSelectedRoomId(room.id);
+                                setSelectedRatePlanId(plan.id);
+                                setRooms(val);
+                              }
+                            }}
+                          >
+                            <option value={0}>0</option>
+                            {[1, 2, 3, 4, 5].map(n => (
+                              <option key={n} value={n}>{n} ({formatCurrency(plan.currency, plan.baseRate * nights * n)})</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="p-3 align-top">
+                          {selectedRatePlanId === plan.id && selectedRoomId === room.id && (
+                            <button
+                              onClick={handleBook}
+                              className="px-4 py-2 bg-[#5DADE2] hover:bg-[#3498DB] text-white font-semibold rounded text-sm whitespace-nowrap transition-colors"
+                            >
+                              I'll reserve
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Amenities Full List */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Facilities</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-y-3 gap-x-6">
               {hotel.amenities.map((amenity, idx) => {
-                const amenityName = typeof amenity === 'string' ? amenity : amenity.name;
-                const amenityKey = typeof amenity === 'string' ? `${amenity}-${idx}` : amenity.id;
+                const name = typeof amenity === 'string' ? amenity : amenity.name;
                 return (
-                  <div key={amenityKey} className="text-white/80 text-sm flex items-center gap-2">
-                    <span className="w-2 h-2 bg-white/40 rounded-full" />
-                    {amenityName}
+                  <div key={idx} className="flex items-center gap-2 text-sm text-gray-700">
+                    <svg className="w-4 h-4 text-[#5DADE2]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    {name}
                   </div>
                 );
               })}
             </div>
-          </GlassCard>
-
-          <div className="space-y-5">
-            <h2 className="text-3xl font-bold text-white">Suites & Packages</h2>
-            {hotel.roomTypes.map((room) => (
-              <GlassCard key={room.id} className="space-y-5">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs uppercase text-white/60 tracking-[0.4em] mb-1">
-                      {room.isSuite ? 'Signature Suite' : 'Room Category'}
-                    </p>
-                    <h3 className="text-2xl font-semibold text-white">{room.name}</h3>
-                    <p className="text-white/70 text-sm">{room.description}</p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-white/60 text-sm">
-                      Sleeps {room.maxAdults} adults · {room.maxChildren} children
-                    </div>
-                    <Button
-                      variant={selectedRoomId === room.id ? 'primary' : 'secondary'}
-                      onClick={() => {
-                        setSelectedRoomId(room.id);
-                        setSelectedRatePlanId(room.ratePlans[0]?.id ?? null);
-                      }}
-                    >
-                      {selectedRoomId === room.id ? 'Selected' : 'Focus'}
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="grid gap-4">
-                  {room.ratePlans.map((plan, planIndex) => {
-                    const isActive = selectedRatePlanId === plan.id;
-                    return (
-                      <div
-                        key={`${room.id}-${plan.id}-${planIndex}`}
-                        className={`border rounded-2xl p-4 transition-all ${
-                          isActive ? 'border-white/60 bg-white/5' : 'border-white/10 bg-white/0'
-                        }`}
-                      >
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
-                          <div>
-                            <p className="text-xs uppercase text-white/50 tracking-[0.4em] mb-1">
-                              {plan.boardType.replace(/_/g, ' ')}
-                            </p>
-                            <h4 className="text-xl text-white font-semibold">{plan.name}</h4>
-                            <p className="text-white/70 text-sm">
-                              {plan.cancellationPolicy?.name ?? 'Flexible cancellation'}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-white text-2xl font-bold">
-                              {formatCurrency(plan.currency, plan.baseRate)}
-                            </div>
-                            <p className="text-white/60 text-xs">per night · taxes excl.</p>
-                          </div>
-                        </div>
-
-                        {/* Urgency Indicator */}
-                        {plan.availableRooms !== undefined && plan.availableRooms <= 5 && (
-                          <div className="flex items-center gap-2 mb-3 p-2 bg-red-500/10 border border-red-500/30 rounded-lg">
-                            <span className="relative flex h-3 w-3">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                            </span>
-                            <span className="text-red-400 text-sm font-semibold">
-                              {plan.availableRooms === 1 
-                                ? 'Only 1 room left!' 
-                                : `Only ${plan.availableRooms} rooms left!`}
-                            </span>
-                          </div>
-                        )}
-
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {plan.addOns.map((addOn) => (
-                            <span
-                              key={addOn.id}
-                              className={`text-[11px] uppercase tracking-wide px-3 py-1 rounded-full ${
-                                addOn.included
-                                  ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/40'
-                                  : 'bg-white/5 text-white/70 border border-white/10'
-                              }`}
-                            >
-                              {addOn.included ? 'Includes' : 'Optional'} · {addOn.name}
-                            </span>
-                          ))}
-                        </div>
-
-                        <Button
-                          variant={isActive ? 'primary' : 'secondary'}
-                          onClick={() => handleSelectRatePlan(room.id, plan.id)}
-                          fullWidth
-                        >
-                          {isActive ? 'Selected package' : 'Choose this package'}
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </GlassCard>
-            ))}
           </div>
         </div>
 
-        {/* Booking Summary */}
-        <div className="xl:col-span-1">
-          <GlassCard className="sticky top-24 space-y-5">
-            <h3 className="text-2xl font-bold text-white">Plan your stay</h3>
-
-            <div>
-              <p className="text-white/60 text-xs uppercase mb-2">Dates</p>
-              <div className="flex flex-col gap-3">
-                <DatePicker
-                  selected={checkIn}
-                  onChange={(date) => date && setCheckIn(date)}
-                  selectsStart
-                  startDate={checkIn}
-                  endDate={checkOut}
-                  minDate={new Date()}
-                  placeholderText="Check-in"
-                  className="glass-input w-full"
-                />
-                <DatePicker
-                  selected={checkOut}
-                  onChange={(date) => date && setCheckOut(date)}
-                  selectsEnd
-                  startDate={checkIn}
-                  endDate={checkOut}
-                  minDate={addDays(checkIn, 1)}
-                  placeholderText="Check-out"
-                  className="glass-input w-full"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <Counter label="Rooms" value={rooms} onChange={setRooms} min={1} max={selectedRatePlan?.availableRooms ?? 5} />
-              <Counter label="Adults" value={adults} onChange={setAdults} min={1} max={selectedRoom?.maxAdults ?? 4} />
-              <Counter label="Children" value={children} onChange={setChildren} min={0} max={selectedRoom?.maxChildren ?? 2} />
-            </div>
-
-            {hotel.addOns.length > 0 && (
-              <div>
-                <p className="text-white/60 text-xs uppercase mb-2">Optional Extras</p>
-                <div className="flex flex-col gap-2">
-                  {hotel.addOns.map((addOn) => {
-                    const active = Boolean(addOnSelections[addOn.id]);
-                    return (
-                      <button
-                        key={addOn.id}
-                        onClick={() => toggleAddOn(addOn.id)}
-                        className={`flex items-center justify-between rounded-2xl px-3 py-2 text-left transition ${
-                          active ? 'bg-white/20 border border-white/50' : 'bg-white/5 border border-white/10'
-                        }`}
-                      >
-                        <div>
-                          <p className="text-white text-sm font-semibold">{addOn.name}</p>
-                          <p className="text-white/60 text-xs">{addOn.description}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-white text-sm font-bold">
-                            {addOn.isComplimentary
-                              ? 'Included'
-                              : formatCurrency(addOn.currency, addOn.price)}
-                          </p>
-                          <p className="text-white/50 text-[10px]">
-                            {addOn.isPerNight ? 'per night' : 'per stay'}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })}
+        {/* Sidebar */}
+        <div className="lg:col-span-1 space-y-4">
+          {/* Price Summary Card */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4 sticky top-4">
+            <h3 className="font-bold text-gray-900 mb-4">Price summary</h3>
+            
+            {selectedRatePlan ? (
+              <>
+                <div className="space-y-2 mb-4">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">{nights} nights, {rooms} room</span>
+                    <span className="text-gray-900">{formatCurrency(selectedRatePlan.currency, totals.subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Taxes & fees</span>
+                    <span className="text-gray-900">{formatCurrency(selectedRatePlan.currency, totals.taxes + totals.fees)}</span>
+                  </div>
                 </div>
-              </div>
+                <div className="border-t border-gray-200 pt-3 mb-4">
+                  <div className="flex justify-between">
+                    <span className="font-bold text-gray-900">Total</span>
+                    <span className="font-bold text-xl text-gray-900">{formatCurrency(selectedRatePlan.currency, totals.total)}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 text-right">Includes taxes and charges</p>
+                </div>
+                <button
+                  onClick={handleBook}
+                  className="w-full py-3 bg-[#5DADE2] hover:bg-[#3498DB] text-white font-semibold rounded transition-colors"
+                >
+                  Reserve
+                </button>
+              </>
+            ) : (
+              <p className="text-gray-500 text-sm">Select a room to see the price</p>
             )}
+          </div>
 
-            <div className="border border-white/5 rounded-2xl p-4 space-y-2">
-              <div className="flex justify-between text-white/70 text-sm">
-                <span>
-                  {nights} night{nights > 1 ? 's' : ''} × {rooms} room{rooms > 1 ? 's' : ''}
-                </span>
-                <span>{formatCurrency(selectedRatePlan?.currency ?? 'GBP', totals.subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-white/70 text-sm">
-                <span>Taxes & fees</span>
-                <span>{formatCurrency(selectedRatePlan?.currency ?? 'GBP', totals.taxes + totals.fees)}</span>
-              </div>
-              {totals.addOns > 0 && (
-                <div className="flex justify-between text-white/70 text-sm">
-                  <span>Add-ons</span>
-                  <span>{formatCurrency(selectedRatePlan?.currency ?? 'GBP', totals.addOns)}</span>
+          {/* Map Card */}
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="aspect-[4/3] bg-gray-100 relative">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <svg className="w-8 h-8 text-gray-300 mx-auto mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  </svg>
+                  <p className="text-sm text-gray-500">Map</p>
                 </div>
-              )}
-              <div className="border-t border-white/10 pt-3 flex justify-between text-white text-xl font-bold">
-                <span>Total</span>
-                <span>{formatCurrency(selectedRatePlan?.currency ?? 'GBP', totals.total)}</span>
               </div>
-              <p className="text-white/50 text-xs text-right">Charged in {selectedRatePlan?.currency ?? 'GBP'}</p>
             </div>
-
-            <Button size='lg' onClick={handleBook} fullWidth disabled={!selectedRatePlan}>
-              {selectedRatePlan ? 'Proceed to booking' : 'Select a package'}
-            </Button>
-          </GlassCard>
+            <div className="p-3">
+              <p className="text-sm font-semibold text-gray-900">{hotel.location}</p>
+              <a href="#" className="text-sm text-[#5DADE2] hover:underline">Excellent location – show map</a>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-const Counter = ({
-  label,
-  value,
-  onChange,
-  min,
-  max,
-}: {
-  label: string;
-  value: number;
-  onChange: (next: number) => void;
-  min: number;
-  max: number;
-}) => (
-  <div className="bg-white/5 border border-white/10 rounded-2xl p-3">
-    <p className="text-white/60 text-xs uppercase mb-2">{label}</p>
-    <div className="flex items-center justify-between">
-      <button
-        onClick={() => value > min && onChange(value - 1)}
-        className="w-8 h-8 rounded-full bg-white/10 text-white text-lg"
-      >
-        −
-      </button>
-      <span className="text-white text-lg font-semibold">{value}</span>
-      <button
-        onClick={() => value < max && onChange(value + 1)}
-        className="w-8 h-8 rounded-full bg-white/10 text-white text-lg"
-      >
-        +
-      </button>
+function StarRating({ stars }: { stars: number }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {[...Array(Math.floor(stars))].map((_, i) => (
+        <svg key={i} className="w-3.5 h-3.5 text-yellow-400 fill-current" viewBox="0 0 20 20">
+          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+        </svg>
+      ))}
     </div>
-  </div>
-);
+  );
+}
 
 function formatCurrency(currency: string, amount: number) {
   return new Intl.NumberFormat('en-GB', {
@@ -655,4 +492,3 @@ function diffInNights(from: Date, to: Date) {
   const msPerDay = 1000 * 60 * 60 * 24;
   return Math.max(1, Math.floor((to.getTime() - from.getTime()) / msPerDay));
 }
-

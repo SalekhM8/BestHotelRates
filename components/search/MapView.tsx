@@ -286,3 +286,4 @@ export function MapView({ hotels, destination, onHotelSelect, selectedHotelId }:
 
 export default MapView;
 
+

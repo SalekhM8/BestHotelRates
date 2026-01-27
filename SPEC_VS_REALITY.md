@@ -706,3 +706,4 @@ User wants pool → ❌ Can't filter by amenities
 **Platform is 89% complete and payment works! Want me to build emails next, or legal pages?** 🚀
 
 
+

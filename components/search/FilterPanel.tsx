@@ -1,194 +1,193 @@
 'use client';
 
-import React from 'react';
-import { PriceSlider } from './PriceSlider';
-import { GlassCard } from '../ui/GlassCard';
+import React, { useState } from 'react';
 
-export interface SearchFilters {
+type Props = {
   priceRange: [number, number];
-  starRating: number[];
-  amenities: string[];
-  boardTypes: string[];
-  refundableOnly: boolean;
-  payAtHotel: boolean;
-}
+  onPriceRangeChange: (range: [number, number]) => void;
+  starRatings: number[];
+  onStarRatingsChange: (ratings: number[]) => void;
+  selectedFilters: string[];
+  onFiltersChange: (filters: string[]) => void;
+};
 
-interface FilterPanelProps {
-  filters: SearchFilters;
-  onChange: (filters: SearchFilters) => void;
-  priceHistogram?: number[];
-  resultsCount: number;
-  onClearAll: () => void;
-}
+const popularFilters = [
+  { id: 'hotels', label: 'Hotels', count: 902 },
+  { id: 'very-good', label: 'Very good: 8+', count: 1147, sub: 'Based on guest reviews' },
+  { id: '4-stars', label: '4 stars', count: 972 },
+  { id: 'breakfast', label: 'Breakfast included', count: 562 },
+  { id: 'twin-beds', label: 'Twin beds', count: 676 },
+  { id: 'private-bathroom', label: 'Private bathroom', count: 1956 },
+];
 
-const STAR_OPTIONS = [5, 4, 3, 2, 1];
+const facilityFilters = [
+  { id: 'free-wifi', label: 'Free WiFi', count: 2341 },
+  { id: 'parking', label: 'Parking', count: 876 },
+  { id: 'pet-friendly', label: 'Pet friendly', count: 234 },
+  { id: 'swimming-pool', label: 'Swimming pool', count: 156 },
+  { id: 'fitness-centre', label: 'Fitness centre', count: 445 },
+  { id: 'restaurant', label: 'Restaurant', count: 678 },
+  { id: '24hr-reception', label: '24-hour reception', count: 1234 },
+  { id: 'non-smoking', label: 'Non-smoking rooms', count: 1987 },
+];
 
-// Amenities removed - HotelBeds API doesn't provide amenity data in search results
-
-const BOARD_OPTIONS = [
-  { id: 'breakfast', label: 'Breakfast Included', icon: '🥐' },
-  { id: 'halfboard', label: 'Half Board', icon: '🍽️' },
-  { id: 'fullboard', label: 'Full Board', icon: '🍴' },
-  { id: 'allinclusive', label: 'All Inclusive', icon: '🌴' },
+const propertyTypes = [
+  { id: 'hotels', label: 'Hotels', count: 902 },
+  { id: 'apartments', label: 'Apartments', count: 543 },
+  { id: 'guest-houses', label: 'Guest houses', count: 234 },
+  { id: 'hostels', label: 'Hostels', count: 67 },
+  { id: 'b-and-b', label: 'B&Bs', count: 178 },
 ];
 
 export function FilterPanel({
-  filters,
-  onChange,
-  priceHistogram = [],
-  resultsCount,
-  onClearAll,
-}: FilterPanelProps) {
+  priceRange,
+  onPriceRangeChange,
+  starRatings,
+  onStarRatingsChange,
+  selectedFilters,
+  onFiltersChange,
+}: Props) {
+  const [showAllFacilities, setShowAllFacilities] = useState(false);
+
+  const toggleFilter = (filterId: string) => {
+    if (selectedFilters.includes(filterId)) {
+      onFiltersChange(selectedFilters.filter(f => f !== filterId));
+    } else {
+      onFiltersChange([...selectedFilters, filterId]);
+    }
+  };
+
   const toggleStarRating = (star: number) => {
-    const newStars = filters.starRating.includes(star)
-      ? filters.starRating.filter((s) => s !== star)
-      : [...filters.starRating, star];
-    onChange({ ...filters, starRating: newStars });
+    if (starRatings.includes(star)) {
+      onStarRatingsChange(starRatings.filter(s => s !== star));
+    } else {
+      onStarRatingsChange([...starRatings, star]);
+    }
   };
-
-  // toggleAmenity removed - HotelBeds doesn't support amenity filtering
-
-  const toggleBoardType = (boardId: string) => {
-    const newBoardTypes = filters.boardTypes.includes(boardId)
-      ? filters.boardTypes.filter((b) => b !== boardId)
-      : [...filters.boardTypes, boardId];
-    onChange({ ...filters, boardTypes: newBoardTypes });
-  };
-
-  const hasActiveFilters =
-    filters.priceRange[0] > 0 ||
-    filters.priceRange[1] < 2000 ||
-    filters.starRating.length > 0 ||
-    filters.amenities.length > 0 ||
-    filters.boardTypes.length > 0 ||
-    filters.refundableOnly ||
-    filters.payAtHotel;
 
   return (
-    <GlassCard className="sticky top-24">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-bold text-white">Filters</h3>
-        {hasActiveFilters && (
-          <button
-            onClick={onClearAll}
-            className="text-sm text-blue-300 hover:text-blue-200 transition-colors"
-          >
-            Clear all
-          </button>
-        )}
+    <div className="bg-white rounded-lg border border-gray-200">
+      <div className="p-4 border-b border-gray-200">
+        <h2 className="font-bold text-gray-900">Filter by:</h2>
       </div>
 
-      {/* Results Count */}
-      <div className="mb-6 pb-6 border-b border-white/10">
-        <p className="text-white/80">
-          <span className="text-2xl font-bold text-white">{resultsCount}</span> hotels found
-        </p>
-      </div>
-
-      {/* Price Range */}
-      <div className="mb-6 pb-6 border-b border-white/10">
-        <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wide">
-          Price per night
-        </h4>
-        <PriceSlider
-          min={0}
-          max={2000}
-          value={filters.priceRange}
-          onChange={(priceRange) => onChange({ ...filters, priceRange })}
-          histogram={priceHistogram}
-        />
-      </div>
-
-      {/* Quick Filters */}
-      <div className="mb-6 pb-6 border-b border-white/10">
-        <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wide">
-          Popular filters
-        </h4>
-        <div className="space-y-3">
-          <label className="flex items-center gap-3 cursor-pointer group">
-            <input
-              type="checkbox"
-              checked={filters.refundableOnly}
-              onChange={(e) =>
-                onChange({ ...filters, refundableOnly: e.target.checked })
-              }
-              className="w-5 h-5 rounded border-white/30 bg-white/10 text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
+      {/* Budget */}
+      <div className="filter-section px-4">
+        <h3 className="filter-title">Your budget (per night)</h3>
+        <p className="text-sm text-gray-600 mb-3">£{priceRange[0]} - £{priceRange[1]}+</p>
+        
+        {/* Price Distribution (simplified) */}
+        <div className="flex items-end h-12 gap-0.5 mb-3">
+          {[20, 35, 55, 80, 65, 45, 30, 15, 10, 8].map((h, i) => (
+            <div
+              key={i}
+              className="flex-1 bg-[#5DADE2] rounded-t"
+              style={{ height: `${h}%` }}
             />
-            <span className="text-white group-hover:text-white/80 transition-colors">
-              Free cancellation
-            </span>
-          </label>
-          <label className="flex items-center gap-3 cursor-pointer group">
-            <input
-              type="checkbox"
-              checked={filters.payAtHotel}
-              onChange={(e) =>
-                onChange({ ...filters, payAtHotel: e.target.checked })
-              }
-              className="w-5 h-5 rounded border-white/30 bg-white/10 text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
-            />
-            <span className="text-white group-hover:text-white/80 transition-colors">
-              Pay at hotel
-            </span>
-          </label>
+          ))}
+        </div>
+
+        <div className="relative">
+          <input
+            type="range"
+            min="0"
+            max="500"
+            value={priceRange[1]}
+            onChange={(e) => onPriceRangeChange([priceRange[0], parseInt(e.target.value)])}
+            className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#5DADE2]"
+          />
+        </div>
+      </div>
+
+      {/* Popular Filters */}
+      <div className="filter-section px-4">
+        <h3 className="filter-title">Popular filters</h3>
+        <div className="space-y-1">
+          {popularFilters.map((filter) => (
+            <label key={filter.id} className="filter-checkbox">
+              <input
+                type="checkbox"
+                checked={selectedFilters.includes(filter.id)}
+                onChange={() => toggleFilter(filter.id)}
+                className="w-5 h-5 rounded border-gray-300 text-[#5DADE2] focus:ring-[#5DADE2]"
+              />
+              <div className="flex-1 min-w-0">
+                <span className="text-sm text-gray-700">{filter.label}</span>
+                {filter.sub && (
+                  <p className="text-xs text-gray-500">{filter.sub}</p>
+                )}
+              </div>
+              <span className="text-sm text-gray-500">{filter.count}</span>
+            </label>
+          ))}
         </div>
       </div>
 
       {/* Star Rating */}
-      <div className="mb-6 pb-6 border-b border-white/10">
-        <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wide">
-          Star rating
-        </h4>
+      <div className="filter-section px-4">
+        <h3 className="filter-title">Star rating</h3>
         <div className="flex flex-wrap gap-2">
-          {STAR_OPTIONS.map((star) => (
+          {[5, 4, 3, 2, 1].map((star) => (
             <button
               key={star}
               onClick={() => toggleStarRating(star)}
-              className={`flex items-center gap-1 px-3 py-2 rounded-lg border transition-all ${
-                filters.starRating.includes(star)
-                  ? 'bg-blue-500/30 border-blue-400 text-white'
-                  : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10 hover:border-white/30'
+              className={`px-3 py-1.5 border rounded-lg text-sm transition-colors ${
+                starRatings.includes(star)
+                  ? 'border-[#5DADE2] bg-[#5DADE2]/10 text-[#5DADE2]'
+                  : 'border-gray-300 text-gray-700 hover:border-[#5DADE2]'
               }`}
             >
-              <span>{star}</span>
-              <svg
-                className="w-4 h-4 text-yellow-400"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
+              {star} {star === 1 ? 'star' : 'stars'}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Board Type / Meals */}
-      <div className="mb-6 pb-6 border-b border-white/10">
-        <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wide">
-          Meals included
-        </h4>
-        <div className="space-y-2">
-          {BOARD_OPTIONS.map((option) => (
-            <button
-              key={option.id}
-              onClick={() => toggleBoardType(option.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg border text-left transition-all ${
-                filters.boardTypes.includes(option.id)
-                  ? 'bg-blue-500/30 border-blue-400 text-white'
-                  : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10 hover:border-white/30'
-              }`}
-            >
-              <span>{option.icon}</span>
-              <span>{option.label}</span>
-            </button>
+      {/* Facilities */}
+      <div className="filter-section px-4">
+        <h3 className="filter-title">Facilities</h3>
+        <div className="space-y-1">
+          {(showAllFacilities ? facilityFilters : facilityFilters.slice(0, 5)).map((filter) => (
+            <label key={filter.id} className="filter-checkbox">
+              <input
+                type="checkbox"
+                checked={selectedFilters.includes(filter.id)}
+                onChange={() => toggleFilter(filter.id)}
+                className="w-5 h-5 rounded border-gray-300 text-[#5DADE2] focus:ring-[#5DADE2]"
+              />
+              <span className="flex-1 text-sm text-gray-700">{filter.label}</span>
+              <span className="text-sm text-gray-500">{filter.count}</span>
+            </label>
+          ))}
+        </div>
+        {facilityFilters.length > 5 && (
+          <button
+            onClick={() => setShowAllFacilities(!showAllFacilities)}
+            className="mt-2 text-sm text-[#5DADE2] hover:underline"
+          >
+            {showAllFacilities ? 'Show less' : `Show all ${facilityFilters.length} facilities`}
+          </button>
+        )}
+      </div>
+
+      {/* Property Type */}
+      <div className="filter-section px-4 border-b-0">
+        <h3 className="filter-title">Property type</h3>
+        <div className="space-y-1">
+          {propertyTypes.map((type) => (
+            <label key={type.id} className="filter-checkbox">
+              <input
+                type="checkbox"
+                checked={selectedFilters.includes(`type-${type.id}`)}
+                onChange={() => toggleFilter(`type-${type.id}`)}
+                className="w-5 h-5 rounded border-gray-300 text-[#5DADE2] focus:ring-[#5DADE2]"
+              />
+              <span className="flex-1 text-sm text-gray-700">{type.label}</span>
+              <span className="text-sm text-gray-500">{type.count}</span>
+            </label>
           ))}
         </div>
       </div>
-
-      {/* Amenities removed - HotelBeds API doesn't provide amenity data in search results */}
-    </GlassCard>
+    </div>
   );
 }
-

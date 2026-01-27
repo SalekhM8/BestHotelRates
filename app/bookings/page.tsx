@@ -1,221 +1,206 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import Link from 'next/link';
 
-interface Booking {
+type Booking = {
   id: string;
   bookingReference: string;
   hotelName: string;
   hotelLocation: string;
-  checkIn: Date;
-  checkOut: Date;
   roomType: string;
+  checkIn: string;
+  checkOut: string;
+  status: string;
   totalAmount: number;
-  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
-  createdAt: Date;
-}
+  currency: string;
+};
 
 export default function BookingsPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status: authStatus } = useSession();
   const router = useRouter();
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('all');
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'upcoming' | 'past'>('upcoming');
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      // Redirect to login page
+    if (authStatus === 'unauthenticated') {
       router.push('/login');
-      return;
     }
+  }, [authStatus, router]);
 
-    if (status === 'authenticated') {
-      fetchBookings();
-    }
-  }, [status, router]);
-
-  const fetchBookings = async () => {
-    try {
-      const response = await fetch(`/api/bookings?filter=${filter}`);
-      const data = await response.json();
+  useEffect(() => {
+    async function fetchBookings() {
+      if (authStatus !== 'authenticated') return;
       
-      if (response.ok) {
-        setBookings(data.bookings);
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/bookings?filter=${filter}`);
+        const data = await res.json();
+        setBookings(data.bookings || []);
+      } catch (err) {
+        console.error('Failed to fetch bookings:', err);
+      } finally {
+        setLoading(false);
       }
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error fetching bookings:', error);
-      setIsLoading(false);
     }
-  };
 
-  if (status === 'loading' || isLoading) {
+    fetchBookings();
+  }, [authStatus, filter]);
+
+  if (authStatus === 'loading') {
     return (
-      <main className="relative min-h-screen pb-24 pt-32">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center text-white">Loading...</div>
-        </div>
-      </main>
+      <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#5DADE2]"></div>
+      </div>
     );
   }
 
-  if (!session) {
-    return null;
-  }
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-GB', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
 
-  const getStatusColor = (status: Booking['status']) => {
+  const formatCurrency = (amount: number, currency: string) => {
+    return new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: currency || 'GBP',
+    }).format(amount);
+  };
+
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'CONFIRMED':
-        return 'bg-green-500/20 text-green-300 border-green-500/50';
+        return 'bg-green-100 text-green-700';
       case 'PENDING':
-        return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50';
+        return 'bg-yellow-100 text-yellow-700';
       case 'CANCELLED':
-        return 'bg-red-500/20 text-red-300 border-red-500/50';
-      case 'COMPLETED':
-        return 'bg-blue-500/20 text-blue-300 border-blue-500/50';
+        return 'bg-red-100 text-red-700';
       default:
-        return 'bg-gray-500/20 text-gray-300 border-gray-500/50';
+        return 'bg-gray-100 text-gray-700';
     }
   };
 
   return (
-    <main className="relative min-h-screen pb-24 pt-32">
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-4xl font-bold text-white drop-shadow-lg">
-            My Bookings
-          </h1>
+    <div className="min-h-screen bg-[#f5f5f5]">
+      {/* Header */}
+      <div className="bg-[#5DADE2] py-8">
+        <div className="max-w-5xl mx-auto px-4">
+          <h1 className="text-3xl font-bold text-white">Bookings & Trips</h1>
+        </div>
+      </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={() => setFilter('all')}
-              className={`glass-card-small px-4 py-2 text-sm font-semibold transition-all ${
-                filter === 'all' ? 'bg-white/20' : ''
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setFilter('upcoming')}
-              className={`glass-card-small px-4 py-2 text-sm font-semibold transition-all ${
-                filter === 'upcoming' ? 'bg-white/20' : ''
-              }`}
-            >
-              Upcoming
-            </button>
-            <button
-              onClick={() => setFilter('past')}
-              className={`glass-card-small px-4 py-2 text-sm font-semibold transition-all ${
-                filter === 'past' ? 'bg-white/20' : ''
-              }`}
-            >
-              Past
-            </button>
-          </div>
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        {/* Filter Tabs */}
+        <div className="flex gap-4 mb-6">
+          <button
+            onClick={() => setFilter('upcoming')}
+            className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+              filter === 'upcoming'
+                ? 'bg-[#5DADE2] text-white'
+                : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            Upcoming
+          </button>
+          <button
+            onClick={() => setFilter('past')}
+            className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+              filter === 'past'
+                ? 'bg-[#5DADE2] text-white'
+                : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            Completed
+          </button>
         </div>
 
-        {bookings.length === 0 ? (
-          <GlassCard>
-            <div className="text-center py-12">
-              <svg
-                className="w-20 h-20 mx-auto mb-4 text-white/40"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                />
-              </svg>
-              <h3 className="text-xl font-semibold text-white mb-2">
-                No bookings yet
-              </h3>
-              <p className="text-white/70 mb-6">
-                Start exploring and book your perfect stay
-              </p>
-              <button
-                onClick={() => router.push('/')}
-                className="glass-card-small px-6 py-3 text-white font-semibold"
-              >
-                Browse Hotels
-              </button>
-            </div>
-          </GlassCard>
-        ) : (
+        {/* Loading */}
+        {loading && (
+          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#5DADE2] mx-auto"></div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && bookings.length === 0 && (
+          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+            <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No bookings found</h3>
+            <p className="text-gray-500 mb-6">
+              {filter === 'upcoming' 
+                ? "You don't have any upcoming trips. Start planning your next adventure!"
+                : "You don't have any past bookings yet."
+              }
+            </p>
+            <Link
+              href="/"
+              className="inline-block px-6 py-3 bg-[#5DADE2] text-white font-semibold rounded-lg hover:bg-[#3498DB] transition-colors"
+            >
+              Search hotels
+            </Link>
+          </div>
+        )}
+
+        {/* Booking Cards */}
+        {!loading && bookings.length > 0 && (
           <div className="space-y-4">
             {bookings.map((booking) => (
-              <GlassCard key={booking.id} className="hover:scale-[1.01] transition-transform">
-                <div className="flex flex-col md:flex-row gap-6">
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h3 className="text-xl font-semibold text-white mb-1">
-                          {booking.hotelName}
-                        </h3>
-                        <p className="text-white/70 text-sm">
-                          {booking.hotelLocation}
-                        </p>
+              <div key={booking.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                <div className="p-6">
+                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(booking.status)}`}>
+                          {booking.status}
+                        </span>
+                        <span className="text-sm text-gray-500">Ref: {booking.bookingReference}</span>
                       </div>
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(
-                          booking.status
-                        )}`}
-                      >
-                        {booking.status}
-                      </span>
+                      <h3 className="text-lg font-bold text-gray-900 mb-1">{booking.hotelName}</h3>
+                      <p className="text-sm text-gray-600 mb-2">{booking.hotelLocation}</p>
+                      <p className="text-sm text-gray-500">{booking.roomType}</p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <p className="text-white/60 text-sm mb-1">Check-in</p>
-                        <p className="text-white font-medium">
-                          {formatDate(booking.checkIn)}
-                        </p>
+                    <div className="md:text-right">
+                      <div className="text-sm text-gray-500 mb-1">
+                        {formatDate(booking.checkIn)} - {formatDate(booking.checkOut)}
                       </div>
-                      <div>
-                        <p className="text-white/60 text-sm mb-1">Check-out</p>
-                        <p className="text-white font-medium">
-                          {formatDate(booking.checkOut)}
-                        </p>
+                      <div className="text-xl font-bold text-gray-900">
+                        {formatCurrency(booking.totalAmount, booking.currency)}
                       </div>
-                    </div>
-
-                    <div className="flex items-center gap-4 text-sm text-white/70">
-                      <span>Ref: {booking.bookingReference}</span>
-                      <span>•</span>
-                      <span>{booking.roomType}</span>
                     </div>
                   </div>
 
-                  <div className="flex flex-col justify-between md:items-end">
-                    <div className="text-right mb-4">
-                      <p className="text-white/60 text-sm mb-1">Total Amount</p>
-                      <p className="text-2xl font-bold text-white">
-                        {formatCurrency(booking.totalAmount)}
-                      </p>
-                    </div>
-
-                    <button
-                      onClick={() => router.push(`/bookings/${booking.id}`)}
-                      className="glass-card-small px-6 py-2 text-sm font-semibold"
+                  <div className="flex items-center gap-3 mt-4 pt-4 border-t border-gray-100">
+                    <Link
+                      href={`/bookings/${booking.id}`}
+                      className="px-4 py-2 bg-[#5DADE2] text-white font-medium rounded-lg hover:bg-[#3498DB] transition-colors text-sm"
                     >
-                      View Details
-                    </button>
+                      View details
+                    </Link>
+                    {booking.status === 'CONFIRMED' && (
+                      <Link
+                        href={`/bookings/${booking.id}?action=cancel`}
+                        className="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                      >
+                        Cancel booking
+                      </Link>
+                    )}
                   </div>
                 </div>
-              </GlassCard>
+              </div>
             ))}
           </div>
         )}
       </div>
-    </main>
+    </div>
   );
 }
-

@@ -3,17 +3,41 @@
 @tailwind utilities;
 
 :root {
-  --background: #0a0e27;
-  --foreground: #ffffff;
-  --glass-bg: rgba(135, 206, 250, 0.15);
-  --glass-border: rgba(255, 255, 255, 0.2);
-  --glass-hover: rgba(135, 206, 250, 0.25);
+  /* Brand Colors - Baby Blue Theme */
+  --primary: #5DADE2;
+  --primary-dark: #3498DB;
+  --primary-darker: #2980B9;
+  --primary-light: #87CEEB;
+  --primary-lighter: #AED6F1;
+  
+  /* Neutrals */
+  --background: #ffffff;
+  --background-secondary: #f5f5f5;
+  --background-tertiary: #ebf3ff;
+  --foreground: #1a1a1a;
+  --text-primary: #1a1a1a;
+  --text-secondary: #595959;
+  --text-muted: #8c8c8c;
+  
+  /* Borders */
+  --border-light: #e0e0e0;
+  --border-medium: #bdbdbd;
+  
+  /* Status Colors */
+  --success: #008009;
+  --success-bg: #e7f7e8;
+  --warning: #c77700;
+  --warning-bg: #fff4e5;
+  --error: #d4111e;
+  --error-bg: #ffe5e5;
+  --info: #0057b8;
+  --info-bg: #e5f1ff;
 }
 
 @layer base {
   body {
-    @apply bg-[#0a0e27] text-white;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    @apply bg-white text-gray-900;
+    font-family: BlinkMacSystemFont, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   }
 }
 
@@ -30,60 +54,7 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans);
   overflow-x: hidden;
-}
-
-/* Glassmorphism Utilities */
-.glass-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 24px;
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
-  transition: all 0.3s ease;
-}
-
-.glass-card:hover {
-  background: var(--glass-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 12px 48px rgba(31, 38, 135, 0.5);
-}
-
-.glass-card-small {
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 16px;
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 4px 16px rgba(31, 38, 135, 0.3);
-  transition: all 0.3s ease;
-}
-
-.glass-card-small:hover {
-  background: var(--glass-hover);
-  transform: translateY(-2px);
-}
-
-.glass-input {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  color: white;
-  transition: all 0.3s ease;
-}
-
-.glass-input:focus {
-  background: rgba(255, 255, 255, 0.15);
-  outline: none;
-  border-color: rgba(135, 206, 250, 0.5);
-}
-
-.glass-input::placeholder {
-  color: rgba(255, 255, 255, 0.6);
 }
 
 /* Custom Scrollbar */
@@ -93,60 +64,182 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
+  background: #f1f1f1;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(135, 206, 250, 0.3);
+  background: var(--primary);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(135, 206, 250, 0.5);
+  background: var(--primary-dark);
 }
 
-/* Video Background */
-.video-background {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: -1;
-  overflow: hidden;
+/* Buttons */
+.btn-primary {
+  @apply bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200;
 }
 
-.video-background video {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  min-width: 100%;
-  min-height: 100%;
-  width: auto;
-  height: auto;
-  transform: translate(-50%, -50%);
-  filter: blur(4px);
-  opacity: 0.7;
-  object-fit: cover;
+.btn-secondary {
+  @apply bg-white hover:bg-gray-50 text-[var(--primary-dark)] font-semibold py-3 px-6 rounded-lg border border-[var(--primary)] transition-all duration-200;
 }
 
-/* Loading Animation */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.btn-outline {
+  @apply bg-transparent hover:bg-gray-50 text-gray-700 font-medium py-2 px-4 rounded-lg border border-gray-300 transition-all duration-200;
 }
 
-.fade-in {
-  animation: fadeIn 0.6s ease forwards;
+/* Cards */
+.card {
+  @apply bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200;
 }
 
-/* React DatePicker Styling - Beautiful Glassmorphism Calendar */
+.card-elevated {
+  @apply bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200;
+}
+
+/* Form Inputs */
+.input-field {
+  @apply w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary-light)] transition-all duration-200;
+}
+
+.input-field:hover {
+  @apply border-gray-400;
+}
+
+/* Search Box - Booking.com Style */
+.search-box {
+  @apply bg-[var(--warning)] p-1 rounded-lg;
+}
+
+.search-input-group {
+  @apply flex items-center bg-white rounded-md border-2 border-transparent hover:border-[var(--primary)] transition-all cursor-pointer;
+}
+
+.search-input-group:focus-within {
+  @apply border-[var(--primary)] ring-2 ring-[var(--primary-light)];
+}
+
+/* Navigation Tabs - Booking.com Style */
+.nav-tab {
+  @apply flex items-center gap-2 px-4 py-2 rounded-full text-white/90 hover:bg-white/10 transition-all duration-200 font-medium text-sm;
+}
+
+.nav-tab.active {
+  @apply bg-white/20 text-white border border-white/40;
+}
+
+/* Hotel Card - Booking.com Style */
+.hotel-card {
+  @apply bg-white border border-gray-200 rounded-lg overflow-hidden hover:border-[var(--primary)] hover:shadow-lg transition-all duration-200;
+}
+
+.hotel-card-horizontal {
+  @apply flex flex-col md:flex-row bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-200;
+}
+
+/* Rating Badge */
+.rating-badge {
+  @apply inline-flex items-center justify-center min-w-[36px] h-9 bg-[var(--primary-dark)] text-white font-bold text-sm rounded-tl-lg rounded-tr-lg rounded-br-lg;
+}
+
+.rating-badge-small {
+  @apply inline-flex items-center justify-center min-w-[28px] h-7 bg-[var(--primary-dark)] text-white font-bold text-xs rounded-tl-md rounded-tr-md rounded-br-md;
+}
+
+/* Price Display */
+.price-original {
+  @apply text-gray-500 line-through text-sm;
+}
+
+.price-current {
+  @apply text-xl font-bold text-gray-900;
+}
+
+.price-night {
+  @apply text-gray-500 text-sm;
+}
+
+/* Tags & Badges */
+.badge {
+  @apply inline-flex items-center px-2 py-1 rounded text-xs font-medium;
+}
+
+.badge-deal {
+  @apply bg-[var(--success-bg)] text-[var(--success)];
+}
+
+.badge-limited {
+  @apply bg-red-100 text-red-700;
+}
+
+.badge-info {
+  @apply bg-[var(--info-bg)] text-[var(--info)];
+}
+
+/* Filter Styles */
+.filter-section {
+  @apply py-4 border-b border-gray-200;
+}
+
+.filter-title {
+  @apply font-bold text-sm text-gray-900 mb-3;
+}
+
+.filter-checkbox {
+  @apply flex items-center gap-3 py-1.5 cursor-pointer hover:bg-gray-50 -mx-2 px-2 rounded;
+}
+
+.filter-checkbox input[type="checkbox"] {
+  @apply w-5 h-5 rounded border-gray-300 text-[var(--primary)] focus:ring-[var(--primary)];
+}
+
+/* Price Slider */
+.price-slider {
+  @apply w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer;
+}
+
+.price-slider::-webkit-slider-thumb {
+  @apply appearance-none w-4 h-4 bg-[var(--primary)] rounded-full cursor-pointer;
+}
+
+/* Map Button */
+.map-button {
+  @apply inline-flex items-center gap-2 bg-[var(--primary)] text-white font-semibold py-2.5 px-4 rounded-lg hover:bg-[var(--primary-dark)] transition-colors;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+  @apply flex items-center gap-2 text-sm text-[var(--primary)] flex-wrap;
+}
+
+.breadcrumb a {
+  @apply hover:underline;
+}
+
+.breadcrumb span {
+  @apply text-gray-500;
+}
+
+/* Header Dropdown */
+.dropdown-menu {
+  @apply absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50;
+}
+
+.dropdown-item {
+  @apply block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors text-sm;
+}
+
+/* Footer */
+.footer-section {
+  @apply border-t border-gray-200 bg-gray-50;
+}
+
+.footer-link {
+  @apply text-[var(--primary)] hover:underline text-sm;
+}
+
+/* React DatePicker - White Theme */
 .react-datepicker-wrapper {
   width: 100%;
 }
@@ -155,113 +248,152 @@ body {
   z-index: 9999 !important;
 }
 
-.react-datepicker__portal {
-  z-index: 9999 !important;
-}
-
 .react-datepicker {
-  background: rgba(20, 30, 70, 0.98) !important;
-  backdrop-filter: blur(30px) !important;
-  -webkit-backdrop-filter: blur(30px) !important;
-  border: 2px solid rgba(135, 206, 250, 0.3) !important;
-  border-radius: 20px !important;
-  color: white !important;
+  background: white !important;
+  border: 1px solid var(--border-light) !important;
+  border-radius: 8px !important;
+  color: var(--text-primary) !important;
   font-family: inherit !important;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
 }
 
 .react-datepicker__header {
-  background: rgba(135, 206, 250, 0.2) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
-  border-radius: 18px 18px 0 0 !important;
-  padding-top: 16px !important;
-  padding-bottom: 8px !important;
+  background: white !important;
+  border-bottom: 1px solid var(--border-light) !important;
+  border-radius: 8px 8px 0 0 !important;
+  padding-top: 12px !important;
 }
 
 .react-datepicker__current-month {
-  color: white !important;
+  color: var(--text-primary) !important;
   font-weight: 700 !important;
-  font-size: 16px !important;
+  font-size: 14px !important;
   margin-bottom: 8px !important;
 }
 
-.react-datepicker__day-names {
-  margin-top: 8px !important;
-}
-
 .react-datepicker__day-name {
-  color: rgba(255, 255, 255, 0.7) !important;
+  color: var(--text-secondary) !important;
   font-weight: 600 !important;
   width: 2.5rem !important;
-  margin: 0.2rem !important;
-}
-
-.react-datepicker__week {
-  display: flex !important;
-  justify-content: center !important;
+  font-size: 12px !important;
 }
 
 .react-datepicker__day {
-  color: white !important;
+  color: var(--text-primary) !important;
   width: 2.5rem !important;
-  display: inline-flex !important;
-  justify-content: center !important;
-  align-items: center !important;
   line-height: 2.5rem !important;
-  margin: 0.2rem !important;
-  border-radius: 10px !important;
-  transition: all 0.2s ease !important;
+  border-radius: 4px !important;
+  transition: all 0.15s ease !important;
 }
 
 .react-datepicker__day:hover {
-  background: rgba(135, 206, 250, 0.4) !important;
-  transform: scale(1.05) !important;
+  background: var(--primary-lighter) !important;
 }
 
 .react-datepicker__day--selected,
 .react-datepicker__day--in-selecting-range,
 .react-datepicker__day--in-range {
-  background: rgba(135, 206, 250, 0.7) !important;
-  font-weight: 700 !important;
-  box-shadow: 0 4px 12px rgba(135, 206, 250, 0.3) !important;
-}
-
-.react-datepicker__day--keyboard-selected {
-  background: rgba(135, 206, 250, 0.5) !important;
-}
-
-.react-datepicker__day--disabled {
-  color: rgba(255, 255, 255, 0.2) !important;
-  cursor: not-allowed !important;
-}
-
-.react-datepicker__day--disabled:hover {
-  background: transparent !important;
-  transform: none !important;
-}
-
-.react-datepicker__day--today {
-  border: 2px solid rgba(135, 206, 250, 0.6) !important;
+  background: var(--primary) !important;
+  color: white !important;
   font-weight: 600 !important;
 }
 
-.react-datepicker__navigation {
-  top: 16px !important;
+.react-datepicker__day--keyboard-selected {
+  background: var(--primary-light) !important;
+}
+
+.react-datepicker__day--disabled {
+  color: var(--text-muted) !important;
+}
+
+.react-datepicker__day--today {
+  border: 2px solid var(--primary) !important;
+  font-weight: 600 !important;
 }
 
 .react-datepicker__navigation-icon::before {
-  border-color: white !important;
-  border-width: 2px 2px 0 0 !important;
+  border-color: var(--text-secondary) !important;
 }
 
 .react-datepicker__navigation:hover *::before {
-  border-color: rgba(135, 206, 250, 1) !important;
-}
-
-.react-datepicker__month {
-  margin: 1rem !important;
+  border-color: var(--primary) !important;
 }
 
 .react-datepicker__triangle {
   display: none !important;
+}
+
+/* Loading Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+/* Skeleton Loading */
+.skeleton {
+  @apply animate-pulse bg-gray-200 rounded;
+}
+
+/* Hide Scrollbar */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Safe Area for Mobile */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* Add padding to body for mobile bottom nav */
+@media (max-width: 767px) {
+  body {
+    padding-bottom: 4rem;
+  }
+}
+
+/* Mobile Bottom Sheet */
+.bottom-sheet {
+  @apply fixed inset-x-0 bottom-0 bg-white rounded-t-2xl shadow-2xl z-50 max-h-[85vh] overflow-hidden;
+}
+
+.bottom-sheet-handle {
+  @apply w-10 h-1 bg-gray-300 rounded-full mx-auto my-3;
+}
+
+/* Urgency Text */
+.urgency-text {
+  @apply text-red-600 font-semibold text-sm;
+}
+
+/* Free Cancellation */
+.free-cancellation {
+  @apply text-[var(--success)] text-sm font-medium;
+}
+
+/* Location Link */
+.location-link {
+  @apply text-[var(--primary)] hover:underline text-sm;
+}
+
+/* Star Rating */
+.star-rating {
+  @apply inline-flex items-center gap-0.5;
+}
+
+.star-rating svg {
+  @apply w-3.5 h-3.5 text-yellow-400 fill-current;
 }

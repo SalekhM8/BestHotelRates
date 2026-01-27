@@ -1,97 +1,88 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { useRouter, usePathname } from 'next/navigation';
 
-export const BottomNav: React.FC = () => {
-  const { data: session } = useSession();
-  const router = useRouter();
+export function BottomNav() {
   const pathname = usePathname();
+  const { data: session } = useSession();
 
-  const handleNavClick = (path: string) => {
-    if (path === '/wishlist' || path === '/bookings' || path === '/profile') {
-      if (!session) {
-        router.push('/login');
-        return;
-      }
-    }
-    router.push(path);
-  };
-
-  const isActive = (path: string) => {
-    if (path === '/') return pathname === '/';
-    return pathname?.startsWith(path);
-  };
+  // Don't show on admin pages
+  if (pathname?.startsWith('/admin')) {
+    return null;
+  }
 
   const navItems = [
     {
-      id: 'explore',
-      label: 'Explore',
-      path: '/',
+      id: 'search',
+      label: 'Search',
+      href: '/',
       icon: (active: boolean) => (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
-          <circle cx="11" cy="11" r="8"></circle>
-          <path d="m21 21-4.35-4.35"></path>
+        <svg className={`w-6 h-6 ${active ? 'text-[#5DADE2]' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
       ),
     },
     {
-      id: 'favorites',
-      label: 'Favorites',
-      path: '/wishlist',
+      id: 'saved',
+      label: 'Saved',
+      href: session ? '/wishlist' : '/login',
       icon: (active: boolean) => (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
-          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+        <svg className={`w-6 h-6 ${active ? 'text-[#5DADE2]' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
         </svg>
       ),
     },
     {
-      id: 'trips',
-      label: 'Trips',
-      path: '/bookings',
+      id: 'bookings',
+      label: 'Bookings',
+      href: session ? '/bookings' : '/login',
       icon: (active: boolean) => (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-          <line x1="16" y1="2" x2="16" y2="6"></line>
-          <line x1="8" y1="2" x2="8" y2="6"></line>
-          <line x1="3" y1="10" x2="21" y2="10"></line>
+        <svg className={`w-6 h-6 ${active ? 'text-[#5DADE2]' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
         </svg>
       ),
     },
     {
       id: 'profile',
-      label: 'Profile',
-      path: '/profile',
+      label: session ? 'Profile' : 'Sign in',
+      href: session ? '/profile' : '/login',
       icon: (active: boolean) => (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-          <circle cx="12" cy="7" r="4"></circle>
+        <svg className={`w-6 h-6 ${active ? 'text-[#5DADE2]' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
       ),
     },
   ];
 
+  const isActive = (href: string) => {
+    if (href === '/') {
+      return pathname === '/';
+    }
+    return pathname?.startsWith(href);
+  };
+
   return (
-    <nav className="glass-card fixed bottom-3 left-1/2 transform -translate-x-1/2 flex items-center justify-between px-3 py-2.5 w-[calc(100%-32px)] max-w-[480px] md:hidden z-50 shadow-2xl">
-      {navItems.map((item) => {
-        const active = isActive(item.path);
-        return (
-          <button
-            key={item.id}
-            onClick={() => handleNavClick(item.path)}
-            className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl transition-all flex-1 min-w-0 ${
-              active ? 'text-white bg-white/15' : 'text-white/60 hover:text-white'
-            }`}
-          >
-            <div className="w-5 h-5 flex items-center justify-center shrink-0">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 safe-area-bottom">
+      <div className="flex items-center justify-around h-16">
+        {navItems.map((item) => {
+          const active = isActive(item.href);
+          return (
+            <Link
+              key={item.id}
+              href={item.href}
+              className="flex flex-col items-center justify-center flex-1 h-full"
+            >
               {item.icon(active)}
-            </div>
-            <span className="text-[8px] font-bold uppercase tracking-tight leading-none whitespace-nowrap">{item.label}</span>
-          </button>
-        );
-      })}
+              <span className={`text-xs mt-1 ${active ? 'text-[#5DADE2] font-medium' : 'text-gray-500'}`}>
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
     </nav>
   );
-};
-
+}
